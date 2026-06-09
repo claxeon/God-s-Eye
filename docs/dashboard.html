@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>God's Eye — BoJ / Carry Trade Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300..700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+/* ── Design tokens ─────────────────────────────────────────────────── */
+:root,[data-theme="light"]{
+  --color-bg:#f7f6f2;--color-surface:#f9f8f5;--color-surface-2:#fbfbf9;
+  --color-surface-offset:#f3f0ec;--color-surface-dynamic:#e6e4df;
+  --color-divider:#dcd9d5;--color-border:#d4d1ca;
+  --color-text:#28251d;--color-text-muted:#7a7974;--color-text-faint:#bab9b4;
+  --color-text-inverse:#f9f8f4;
+  --color-primary:#01696f;--color-primary-hover:#0c4e54;--color-primary-active:#0f3638;
+  --color-primary-highlight:#cedcd8;
+  --color-gold:#d19900;--color-blue:#006494;--color-orange:#da7101;
+  --color-success:#437a22;--color-error:#a12c7b;
+  --color-warning:#964219;
+  --radius-sm:0.375rem;--radius-md:0.5rem;--radius-lg:0.75rem;--radius-xl:1rem;--radius-full:9999px;
+  --shadow-sm:0 1px 2px oklch(0.2 0.01 80/0.06);
+  --shadow-md:0 4px 12px oklch(0.2 0.01 80/0.08);
+  --shadow-lg:0 12px 32px oklch(0.2 0.01 80/0.12);
+  --text-xs:clamp(0.75rem,0.7rem + 0.25vw,0.875rem);
+  --text-sm:clamp(0.875rem,0.8rem + 0.35vw,1rem);
+  --text-base:clamp(1rem,0.95rem + 0.25vw,1.125rem);
+  --text-lg:clamp(1.125rem,1rem + 0.75vw,1.5rem);
+  --text-xl:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);
+  --space-1:0.25rem;--space-2:0.5rem;--space-3:0.75rem;--space-4:1rem;
+  --space-5:1.25rem;--space-6:1.5rem;--space-8:2rem;--space-10:2.5rem;
+  --space-12:3rem;--space-16:4rem;
+  --font-body:'Inter','Helvetica Neue',sans-serif;
+  --font-mono:'DM Mono','Courier New',monospace;
+  --transition:180ms cubic-bezier(0.16,1,0.3,1);
+  --sidebar-w:260px;
+}
+[data-theme="dark"]{
+  --color-bg:#171614;--color-surface:#1c1b19;--color-surface-2:#201f1d;
+  --color-surface-offset:#1d1c1a;--color-surface-dynamic:#2d2c2a;
+  --color-divider:#262523;--color-border:#393836;
+  --color-text:#cdccca;--color-text-muted:#797876;--color-text-faint:#5a5957;
+  --color-text-inverse:#2b2a28;
+  --color-primary:#4f98a3;--color-primary-hover:#227f8b;--color-primary-active:#1a626b;
+  --color-primary-highlight:#313b3b;
+  --color-gold:#e8af34;--color-blue:#5591c7;--color-orange:#fdab43;
+  --color-success:#6daa45;--color-error:#d163a7;
+  --color-warning:#bb653b;
+  --shadow-sm:0 1px 2px oklch(0 0 0/0.2);
+  --shadow-md:0 4px 12px oklch(0 0 0/0.3);
+  --shadow-lg:0 12px 32px oklch(0 0 0/0.4);
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){
+  --color-bg:#171614;--color-surface:#1c1b19;--color-surface-2:#201f1d;
+  --color-surface-offset:#1d1c1a;--color-surface-dynamic:#2d2c2a;
+  --color-divider:#262523;--color-border:#393836;
+  --color-text:#cdccca;--color-text-muted:#797876;--color-text-faint:#5a5957;
+  --color-text-inverse:#2b2a28;
+  --color-primary:#4f98a3;--color-primary-hover:#227f8b;
+  --color-gold:#e8af34;--color-blue:#5591c7;--color-orange:#fdab43;
+  --color-success:#6daa45;--color-error:#d163a7;--color-warning:#bb653b;
+  --shadow-sm:0 1px 2px oklch(0 0 0/0.2);
+  --shadow-md:0 4px 12px oklch(0 0 0/0.3);
+}}
+
+/* ── Reset ─────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;scroll-behavior:smooth}
+body{min-height:100dvh;font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text);background:var(--color-bg);line-height:1.55}
+img,canvas,svg{display:block;max-width:100%}
+input,button,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:none}
+:focus-visible{outline:2px solid var(--color-primary);outline-offset:3px;border-radius:var(--radius-sm)}
+a,button,[role=button],input,select{transition:color var(--transition),background var(--transition),border-color var(--transition),box-shadow var(--transition)}
+
+/* ── App shell ─────────────────────────────────────────────────────── */
+.app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:48px 1fr;min-height:100dvh}
+@media(max-width:768px){.app{grid-template-columns:1fr;grid-template-rows:48px auto 1fr}}
+
+/* ── Header ────────────────────────────────────────────────────────── */
+.header{
+  grid-column:1/-1;grid-row:1;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 var(--space-6);
+  background:var(--color-surface);border-bottom:1px solid var(--color-border);
+  position:sticky;top:0;z-index:100;
+}
+.logo{display:flex;align-items:center;gap:var(--space-3);font-size:var(--text-sm);font-weight:600;letter-spacing:0.01em}
+.logo svg{width:24px;height:24px;flex-shrink:0}
+.header-right{display:flex;align-items:center;gap:var(--space-4)}
+.badge{font-size:var(--text-xs);font-family:var(--font-mono);background:var(--color-primary-highlight);color:var(--color-primary);padding:2px var(--space-2);border-radius:var(--radius-full);font-weight:500}
+.theme-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);color:var(--color-text-muted)}
+.theme-btn:hover{background:var(--color-surface-offset);color:var(--color-text)}
+
+/* ── Sidebar ───────────────────────────────────────────────────────── */
+.sidebar{
+  grid-column:1;grid-row:2;
+  background:var(--color-surface);border-right:1px solid var(--color-border);
+  padding:var(--space-6) var(--space-4);
+  overflow-y:auto;position:sticky;top:48px;height:calc(100dvh - 48px);
+}
+@media(max-width:768px){
+  .sidebar{grid-column:1;grid-row:2;position:static;height:auto;border-right:none;border-bottom:1px solid var(--color-border)}
+}
+.sidebar-section{margin-bottom:var(--space-8)}
+.sidebar-label{
+  font-size:var(--text-xs);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;
+  color:var(--color-text-faint);margin-bottom:var(--space-3);
+}
+.control-group{margin-bottom:var(--space-5)}
+.control-label{font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-2);display:flex;justify-content:space-between;align-items:center}
+.control-label strong{color:var(--color-text);font-family:var(--font-mono);font-size:var(--text-xs);font-weight:500}
+
+/* Scenario pills */
+.scenario-pills{display:flex;gap:var(--space-2);flex-wrap:wrap}
+.pill-btn{
+  font-size:var(--text-xs);font-weight:500;padding:var(--space-1) var(--space-3);
+  border-radius:var(--radius-full);border:1px solid var(--color-border);
+  background:var(--color-surface-2);color:var(--color-text-muted);
+  transition:all var(--transition);
+}
+.pill-btn.active{background:var(--color-primary);color:var(--color-text-inverse);border-color:var(--color-primary)}
+.pill-btn:hover:not(.active){background:var(--color-surface-offset);color:var(--color-text)}
+
+/* Sliders */
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:4px;border-radius:var(--radius-full);
+  background:var(--color-surface-dynamic);outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--color-primary);cursor:pointer;
+  box-shadow:var(--shadow-sm);
+}
+input[type=range]::-moz-range-thumb{
+  width:16px;height:16px;border-radius:50%;
+  background:var(--color-primary);cursor:pointer;border:none;
+}
+
+/* Overlay toggles */
+.overlay-row{display:flex;align-items:center;justify-content:space-between;padding:var(--space-2) 0;border-bottom:1px solid var(--color-divider)}
+.overlay-row:last-child{border-bottom:none}
+.overlay-label{font-size:var(--text-sm);color:var(--color-text-muted);display:flex;align-items:center;gap:var(--space-2)}
+.swatch{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.toggle-btn{
+  width:36px;height:20px;border-radius:var(--radius-full);
+  background:var(--color-surface-dynamic);position:relative;transition:background var(--transition);
+  flex-shrink:0;
+}
+.toggle-btn.on{background:var(--color-primary)}
+.toggle-btn::after{
+  content:'';position:absolute;top:3px;left:3px;
+  width:14px;height:14px;border-radius:50%;background:#fff;
+  transition:transform var(--transition);
+}
+.toggle-btn.on::after{transform:translateX(16px)}
+
+/* Divider */
+.sidebar hr{border:none;border-top:1px solid var(--color-divider);margin:var(--space-4) 0}
+
+/* Run button */
+.run-btn{
+  width:100%;padding:var(--space-3) var(--space-4);
+  background:var(--color-primary);color:var(--color-text-inverse);
+  border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:600;
+  letter-spacing:0.01em;
+}
+.run-btn:hover{background:var(--color-primary-hover)}
+.run-btn:active{background:var(--color-primary-active)}
+
+/* ── Main content ──────────────────────────────────────────────────── */
+.main{grid-column:2;grid-row:2;overflow-y:auto;padding:var(--space-8) var(--space-8) var(--space-16)}
+@media(max-width:768px){.main{grid-column:1;grid-row:3;padding:var(--space-4)}}
+
+/* ── KPI row ───────────────────────────────────────────────────────── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--space-4);margin-bottom:var(--space-8)}
+.kpi-card{
+  background:var(--color-surface);border:1px solid oklch(from var(--color-text) l c h/0.08);
+  border-radius:var(--radius-lg);padding:var(--space-4) var(--space-5);
+  box-shadow:var(--shadow-sm);
+}
+.kpi-label{font-size:var(--text-xs);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:var(--space-2)}
+.kpi-value{font-size:var(--text-lg);font-weight:700;font-family:var(--font-mono);tabular-nums;color:var(--color-text);line-height:1.1}
+.kpi-delta{font-size:var(--text-xs);font-family:var(--font-mono);margin-top:var(--space-1)}
+.kpi-delta.up{color:var(--color-warning)}
+.kpi-delta.down{color:var(--color-success)}
+.kpi-delta.neutral{color:var(--color-text-faint)}
+
+/* ── Chart cards ───────────────────────────────────────────────────── */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-6);margin-bottom:var(--space-8)}
+@media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
+.chart-card{
+  background:var(--color-surface);border:1px solid oklch(from var(--color-text) l c h/0.08);
+  border-radius:var(--radius-lg);padding:var(--space-5);box-shadow:var(--shadow-sm);
+}
+.chart-card.wide{grid-column:1/-1}
+.chart-title{font-size:var(--text-sm);font-weight:600;color:var(--color-text);margin-bottom:var(--space-1)}
+.chart-sub{font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-4)}
+.chart-wrap{position:relative;height:260px}
+.chart-wrap canvas{width:100%!important}
+
+/* ── Probability gauge ─────────────────────────────────────────────── */
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:260px;gap:var(--space-4)}
+.gauge-arc{position:relative;width:180px;height:90px}
+.gauge-arc svg{overflow:visible}
+.gauge-pct{position:absolute;bottom:0;left:50%;transform:translateX(-50%);font-size:var(--text-xl);font-weight:700;font-family:var(--font-mono);color:var(--color-text)}
+.gauge-sub{font-size:var(--text-xs);color:var(--color-text-muted);text-align:center;max-width:160px}
+
+/* ── WoW table ─────────────────────────────────────────────────────── */
+.table-card{
+  background:var(--color-surface);border:1px solid oklch(from var(--color-text) l c h/0.08);
+  border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:var(--space-8);
+}
+.table-header{padding:var(--space-4) var(--space-6);border-bottom:1px solid var(--color-divider)}
+.table-title{font-size:var(--text-sm);font-weight:600}
+.table-sub{font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px}
+.data-table{width:100%;border-collapse:collapse;font-size:var(--text-sm)}
+.data-table th{font-size:var(--text-xs);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--color-text-muted);padding:var(--space-3) var(--space-4);text-align:right;background:var(--color-surface-offset);border-bottom:1px solid var(--color-divider)}
+.data-table th:first-child{text-align:left}
+.data-table td{padding:var(--space-3) var(--space-4);text-align:right;font-family:var(--font-mono);font-size:var(--text-xs);border-bottom:1px solid var(--color-divider);tabular-nums}
+.data-table td:first-child{text-align:left;font-family:var(--font-body);color:var(--color-text-muted)}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--color-surface-offset)}
+.pos{color:var(--color-warning)}.neg{color:var(--color-success)}.neu{color:var(--color-text-faint)}
+.hike-cell{font-weight:600}
+.trigger-row td{background:color-mix(in oklch,var(--color-warning) 6%,var(--color-surface))}
+.trigger-row td:first-child{border-left:2px solid var(--color-warning)}
+
+/* ── Status bar ────────────────────────────────────────────────────── */
+.status-bar{
+  position:fixed;bottom:0;left:var(--sidebar-w);right:0;
+  background:var(--color-surface);border-top:1px solid var(--color-border);
+  padding:var(--space-2) var(--space-6);
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:var(--text-xs);color:var(--color-text-muted);z-index:50;
+}
+@media(max-width:768px){.status-bar{left:0}}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--color-success);display:inline-block;margin-right:var(--space-2);flex-shrink:0}
+.status-dot.loading{background:var(--color-gold);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--color-surface-dynamic);border-radius:var(--radius-full)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ── Header ─────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-label="God's Eye logo">
+      <circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/>
+      <ellipse cx="12" cy="12" rx="10" ry="5" stroke-dasharray="0"/>
+      <ellipse cx="12" cy="12" rx="10" ry="5" transform="rotate(60 12 12)"/>
+      <ellipse cx="12" cy="12" rx="10" ry="5" transform="rotate(120 12 12)"/>
+    </svg>
+    <span>God's Eye</span>
+    <span class="badge">BoJ / Carry Trade</span>
+  </div>
+  <div class="header-right">
+    <span id="last-updated" style="font-size:var(--text-xs);color:var(--color-text-faint);font-family:var(--font-mono)"></span>
+    <button class="theme-btn" data-theme-toggle aria-label="Toggle theme">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- ── Sidebar ────────────────────────────────────────────────── -->
+<aside class="sidebar">
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Scenario</div>
+    <div class="scenario-pills">
+      <button class="pill-btn active" data-scenario="capped1">Capped 1.00%</button>
+      <button class="pill-btn" data-scenario="refined">Refined</button>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">FX Parameters</div>
+    <div class="control-group">
+      <label class="control-label" for="fx-target">
+        USD/JPY target <strong id="fx-target-val">152.5</strong>
+      </label>
+      <input type="range" id="fx-target" min="140" max="165" step="0.5" value="152.5">
+    </div>
+    <div class="control-group">
+      <label class="control-label" for="fx-redline">
+        Defense red-line <strong id="fx-redline-val">160.0</strong>
+      </label>
+      <input type="range" id="fx-redline" min="150" max="175" step="0.5" value="160">
+    </div>
+    <div class="control-group">
+      <label class="control-label" for="repat-mult">
+        Repatriation strength <strong id="repat-mult-val">1.00×</strong>
+      </label>
+      <input type="range" id="repat-mult" min="0.5" max="2.0" step="0.05" value="1.0">
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Overlays</div>
+    <div class="overlay-row">
+      <span class="overlay-label"><span class="swatch" style="background:#01696f"></span>USD/JPY</span>
+      <button class="toggle-btn on" data-overlay="usdjpy" role="switch" aria-checked="true"></button>
+    </div>
+    <div class="overlay-row">
+      <span class="overlay-label"><span class="swatch" style="background:#d19900"></span>Japan 10Y</span>
+      <button class="toggle-btn on" data-overlay="jgb10y" role="switch" aria-checked="true"></button>
+    </div>
+    <div class="overlay-row">
+      <span class="overlay-label"><span class="swatch" style="background:#006494"></span>US-JP Spread</span>
+      <button class="toggle-btn on" data-overlay="spread" role="switch" aria-checked="true"></button>
+    </div>
+    <div class="overlay-row">
+      <span class="overlay-label"><span class="swatch" style="background:#da7101"></span>BoJ Rate</span>
+      <button class="toggle-btn on" data-overlay="boj" role="switch" aria-checked="true"></button>
+    </div>
+  </div>
+
+  <hr>
+  <button class="run-btn" id="run-btn">↻ Recalculate</button>
+
+</aside>
+
+<!-- ── Main ───────────────────────────────────────────────────── -->
+<main class="main">
+
+  <!-- KPI row -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">USD/JPY</div>
+      <div class="kpi-value" id="kpi-usdjpy">—</div>
+      <div class="kpi-delta neutral" id="kpi-usdjpy-d">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Japan 10Y</div>
+      <div class="kpi-value" id="kpi-jgb">—</div>
+      <div class="kpi-delta neutral" id="kpi-jgb-d">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">US 10Y</div>
+      <div class="kpi-value" id="kpi-us10y">—</div>
+      <div class="kpi-delta neutral" id="kpi-us10y-d">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">US-JP Spread</div>
+      <div class="kpi-value" id="kpi-spread">—</div>
+      <div class="kpi-delta neutral" id="kpi-spread-d">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">BoJ Rate</div>
+      <div class="kpi-value" id="kpi-boj">—</div>
+      <div class="kpi-delta neutral" id="kpi-boj-d">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Hike Probability</div>
+      <div class="kpi-value" id="kpi-hike-p">—</div>
+      <div class="kpi-delta neutral" id="kpi-hike-p-d">next meeting</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="chart-grid">
+
+    <div class="chart-card wide">
+      <div class="chart-title">USD/JPY vs Japan 10Y Yield — Monthly Median Paths</div>
+      <div class="chart-sub">Dual-axis overlay · Hormuz closure scenario · Shaded region = active FX defense band</div>
+      <div class="chart-wrap"><canvas id="chart-overlay"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">US–Japan 10Y Spread (bp)</div>
+      <div class="chart-sub">Carry incentive — wide = dollar-supportive</div>
+      <div class="chart-wrap"><canvas id="chart-spread"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">BoJ Rate Hike Probability</div>
+      <div class="chart-sub">Estimated from JGB yield path &amp; FX pressure index</div>
+      <div class="gauge-wrap">
+        <div class="gauge-arc">
+          <svg viewBox="0 0 180 90" width="180" height="90">
+            <path d="M10 90 A80 80 0 0 1 170 90" fill="none" stroke="var(--color-surface-dynamic)" stroke-width="14" stroke-linecap="round"/>
+            <path id="gauge-arc-fill" d="M10 90 A80 80 0 0 1 170 90" fill="none" stroke="var(--color-primary)" stroke-width="14" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="251.2"/>
+          </svg>
+          <span class="gauge-pct" id="gauge-pct">0%</span>
+        </div>
+        <div class="gauge-sub" id="gauge-label">Loading scenario data…</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- WoW table -->
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">Monthly Scenario Tracker</div>
+      <div class="table-sub">WoW Δ shown in basis points for yields · USD/JPY in pips · Trigger rows highlighted</div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="data-table" id="main-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>USD/JPY</th>
+            <th>Δ pip</th>
+            <th>JP 10Y</th>
+            <th>Δ bp</th>
+            <th>US 10Y</th>
+            <th>Δ bp</th>
+            <th>Spread</th>
+            <th>BoJ Rate</th>
+            <th>Hike P</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"><tr><td colspan="10" style="text-align:center;color:var(--color-text-faint);padding:var(--space-8)">Loading data…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+</div><!-- .app -->
+
+<!-- Status bar -->
+<div class="status-bar">
+  <span><span class="status-dot loading" id="status-dot"></span><span id="status-text">Loading scenario CSV…</span></span>
+  <span style="font-family:var(--font-mono)">God's Eye · BoJ / Carry Trade Model · v1.0</span>
+</div>
+
+<script>
+// ── Theme toggle ───────────────────────────────────────────────────────
+(function(){
+  const t=document.querySelector('[data-theme-toggle]'),r=document.documentElement;
+  let d=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
+  r.setAttribute('data-theme',d);
+  if(t)t.addEventListener('click',()=>{
+    d=d==='dark'?'light':'dark';
+    r.setAttribute('data-theme',d);
+    t.innerHTML=d==='dark'
+      ?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+      :'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  });
+})();
+
+// ── State ──────────────────────────────────────────────────────────────
+let state = {
+  scenario: 'capped1',
+  fxTarget: 152.5,
+  fxRedline: 160.0,
+  repatMult: 1.0,
+  overlays: { usdjpy: true, jgb10y: true, spread: true, boj: true },
+  data: { capped1: null, refined: null }
+};
+
+// ── CSV parser ─────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = line.split(',');
+    const obj = {};
+    headers.forEach((h, i) => {
+      const v = vals[i] ? vals[i].trim() : '';
+      obj[h] = isNaN(v) || v === '' ? v : parseFloat(v);
+    });
+    return obj;
+  });
+}
+
+// ── Data loading ───────────────────────────────────────────────────────
+async function loadCSV(url) {
+  const r = await fetch(url);
+  const t = await r.text();
+  return parseCSV(t);
+}
+
+async function loadAll() {
+  setStatus('loading', 'Loading scenario data…');
+  try {
+    const base = location.pathname.includes('/docs/') ? '../data/' : './data/';
+    const [capped1, refined] = await Promise.all([
+      loadCSV(base + 'japan_hormuz_mc_capped1.csv'),
+      loadCSV(base + 'japan_hormuz_mc_refined.csv')
+    ]);
+    state.data.capped1 = capped1;
+    state.data.refined = refined;
+    document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleDateString();
+    setStatus('ok', 'Data loaded — ' + capped1.length + ' months');
+    render();
+  } catch(e) {
+    setStatus('error', 'Could not load CSV — check data/ path (' + e.message + ')');
+    renderFallback();
+  }
+}
+
+// ── Status helper ──────────────────────────────────────────────────────
+function setStatus(type, msg) {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  dot.className = 'status-dot' + (type === 'loading' ? ' loading' : '');
+  if(type === 'ok') dot.style.background = 'var(--color-success)';
+  if(type === 'error') dot.style.background = 'var(--color-error)';
+  if(type === 'loading') dot.style.background = '';
+  txt.textContent = msg;
+}
+
+// ── Column name helpers ────────────────────────────────────────────────
+function col(row, candidates) {
+  for(const c of candidates) if(row[c] !== undefined) return row[c];
+  return null;
+}
+const C = {
+  month:  r => col(r, ['month','Month','month_num','t']),
+  usdjpy: r => col(r, ['usdjpy_med','usdjpy','usd_jpy','USD_JPY','usdjpy_median']),
+  jgb:    r => col(r, ['jgb10y_med','jgb10y','jgb_10y','JGB_10Y','japan_10y','jp_10y']),
+  us10y:  r => col(r, ['us10y_med','us10y','US_10Y','us_10y']),
+  boj:    r => col(r, ['boj_rate_med','boj_rate','BoJ_rate','boj','boj_med']),
+  hikep:  r => col(r, ['hike_prob','hike_p','hike_probability','p_hike'])
+};
+
+// ── Apply slider adjustments ───────────────────────────────────────────
+function applyAdjustments(rows) {
+  const fxShift = (state.fxTarget - 152.5) * 0.4;
+  const rm = state.repatMult;
+  return rows.map((r, i) => {
+    const adj = { ...r };
+    const usdjpy = C.usdjpy(r);
+    const jgb = C.jgb(r);
+    const boj = C.boj(r);
+    if(usdjpy !== null) {
+      let v = usdjpy + fxShift;
+      if(v > state.fxRedline) v = state.fxRedline + (v - state.fxRedline) * (1 / rm);
+      adj._usdjpy = v;
+    } else adj._usdjpy = null;
+    adj._jgb = jgb;
+    adj._us10y = C.us10y(r);
+    adj._boj = boj;
+    adj._hikep = C.hikep(r);
+    adj._spread = (adj._us10y !== null && adj._jgb !== null) ? (adj._us10y - adj._jgb) * 100 : null;
+    return adj;
+  });
+}
+
+// ── Charts ─────────────────────────────────────────────────────────────
+let overlayChart = null;
+let spreadChart  = null;
+
+function cssVar(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function renderOverlayChart(rows) {
+  const labels = rows.map((r, i) => {
+    const m = C.month(r);
+    if(m !== null) {
+      const d = new Date(2025, Math.round(m) - 1, 1);
+      return d.toLocaleString('default', { month: 'short', year: '2-digit' });
+    }
+    return 'M' + (i + 1);
+  });
+
+  const datasets = [];
+
+  if(state.overlays.usdjpy && rows.some(r => r._usdjpy !== null)) {
+    datasets.push({
+      label: 'USD/JPY',
+      data: rows.map(r => r._usdjpy),
+      yAxisID: 'yFX',
+      borderColor: cssVar('--color-primary'),
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 3,
+      tension: 0.3,
+      order: 1
+    });
+  }
+  if(state.overlays.jgb10y && rows.some(r => r._jgb !== null)) {
+    datasets.push({
+      label: 'Japan 10Y (%)',
+      data: rows.map(r => r._jgb),
+      yAxisID: 'yYield',
+      borderColor: cssVar('--color-gold'),
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 3,
+      borderDash: [4,3],
+      tension: 0.3,
+      order: 2
+    });
+  }
+  if(state.overlays.boj && rows.some(r => r._boj !== null)) {
+    datasets.push({
+      label: 'BoJ Rate (%)',
+      data: rows.map(r => r._boj),
+      yAxisID: 'yYield',
+      borderColor: cssVar('--color-orange'),
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 2,
+      borderDash: [2,4],
+      tension: 0.1,
+      order: 3
+    });
+  }
+
+  const ctx = document.getElementById('chart-overlay').getContext('2d');
+  if(overlayChart) overlayChart.destroy();
+
+  overlayChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: {
+            color: cssVar('--color-text-muted'),
+            font: { family: cssVar('--font-body'), size: 11 },
+            boxWidth: 12, boxHeight: 2
+          }
+        },
+        tooltip: {
+          backgroundColor: cssVar('--color-surface-2'),
+          borderColor: cssVar('--color-border'),
+          borderWidth: 1,
+          titleColor: cssVar('--color-text'),
+          bodyColor: cssVar('--color-text-muted'),
+          callbacks: {
+            label: ctx => {
+              const v = ctx.parsed.y;
+              if(v === null) return '';
+              if(ctx.dataset.yAxisID === 'yFX') return ` ${ctx.dataset.label}: ${v.toFixed(2)}`;
+              return ` ${ctx.dataset.label}: ${v.toFixed(2)}%`;
+            }
+          }
+        },
+        annotation: state.fxRedline ? {} : {}
+      },
+      scales: {
+        x: {
+          ticks: { color: cssVar('--color-text-muted'), font: { size: 10 } },
+          grid: { color: cssVar('--color-divider') }
+        },
+        yFX: {
+          position: 'left',
+          title: { display: true, text: 'USD/JPY', color: cssVar('--color-primary'), font: { size: 10 } },
+          ticks: { color: cssVar('--color-primary'), font: { size: 10 } },
+          grid: { color: cssVar('--color-divider') }
+        },
+        yYield: {
+          position: 'right',
+          title: { display: true, text: 'Yield (%)', color: cssVar('--color-gold'), font: { size: 10 } },
+          ticks: { color: cssVar('--color-gold'), font: { size: 10 } },
+          grid: { drawOnChartArea: false }
+        }
+      }
+    }
+  });
+}
+
+function renderSpreadChart(rows) {
+  const labels = rows.map((r, i) => {
+    const m = C.month(r);
+    if(m !== null) {
+      const d = new Date(2025, Math.round(m) - 1, 1);
+      return d.toLocaleString('default', { month: 'short', year: '2-digit' });
+    }
+    return 'M' + (i + 1);
+  });
+  const spreads = rows.map(r => r._spread);
+  const ctx = document.getElementById('chart-spread').getContext('2d');
+  if(spreadChart) spreadChart.destroy();
+  spreadChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'US-JP Spread (bp)',
+        data: spreads,
+        borderColor: cssVar('--color-blue'),
+        backgroundColor: 'rgba(0,100,148,0.07)',
+        fill: true,
+        borderWidth: 2,
+        pointRadius: 2,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: cssVar('--color-surface-2'),
+          borderColor: cssVar('--color-border'),
+          borderWidth: 1,
+          titleColor: cssVar('--color-text'),
+          bodyColor: cssVar('--color-text-muted'),
+          callbacks: { label: ctx => ` Spread: ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) : '—'} bp` }
+        }
+      },
+      scales: {
+        x: { ticks: { color: cssVar('--color-text-muted'), font: { size: 10 } }, grid: { color: cssVar('--color-divider') } },
+        y: {
+          ticks: { color: cssVar('--color-text-muted'), font: { size: 10 }, callback: v => v + ' bp' },
+          grid: { color: cssVar('--color-divider') }
+        }
+      }
+    }
+  });
+}
+
+// ── Gauge ──────────────────────────────────────────────────────────────
+function renderGauge(pct, label) {
+  const fill = document.getElementById('gauge-arc-fill');
+  const txt  = document.getElementById('gauge-pct');
+  const lbl  = document.getElementById('gauge-label');
+  const total = 251.2;
+  const offset = total - (total * Math.min(pct, 1));
+  fill.style.strokeDashoffset = offset;
+  const p = Math.round(pct * 100);
+  const col = p >= 75 ? 'var(--color-warning)' : p >= 50 ? 'var(--color-gold)' : 'var(--color-primary)';
+  fill.style.stroke = col;
+  txt.textContent = p + '%';
+  lbl.textContent = label || (p >= 75 ? 'High — hike likely at next meeting' : p >= 50 ? 'Moderate — market on watch' : 'Low — further data needed');
+  document.getElementById('kpi-hike-p').textContent = p + '%';
+}
+
+// ── KPI cards ──────────────────────────────────────────────────────────
+function renderKPIs(rows) {
+  if(!rows.length) return;
+  const last = rows[rows.length - 1];
+  const prev = rows.length > 1 ? rows[rows.length - 2] : null;
+
+  function setKpi(id, val, delta, unit, deltaUnit, isYield) {
+    document.getElementById(id).textContent = val !== null ? val.toFixed(isYield ? 2 : 2) + unit : '—';
+    const d = document.getElementById(id + '-d');
+    if(delta !== null && !isNaN(delta)) {
+      const sign = delta > 0 ? '+' : '';
+      d.textContent = sign + delta.toFixed(isYield ? 1 : 1) + deltaUnit;
+      d.className = 'kpi-delta ' + (delta > 0 ? 'up' : delta < 0 ? 'down' : 'neutral');
+    } else {
+      d.textContent = 'vs prior month';
+      d.className = 'kpi-delta neutral';
+    }
+  }
+
+  setKpi('kpi-usdjpy', last._usdjpy, prev ? last._usdjpy - prev._usdjpy : null, '', ' pip');
+  setKpi('kpi-jgb', last._jgb, prev ? (last._jgb - prev._jgb) * 100 : null, '%', ' bp', true);
+  setKpi('kpi-us10y', last._us10y, prev ? (last._us10y - prev._us10y) * 100 : null, '%', ' bp', true);
+  const sp = last._spread; const psp = prev ? prev._spread : null;
+  document.getElementById('kpi-spread').textContent = sp !== null ? sp.toFixed(1) + ' bp' : '—';
+  const spd = document.getElementById('kpi-spread-d');
+  const sdelta = (psp !== null && sp !== null) ? sp - psp : null;
+  spd.textContent = sdelta !== null ? (sdelta > 0 ? '+' : '') + sdelta.toFixed(1) + ' bp' : 'vs prior';
+  spd.className = 'kpi-delta ' + (sdelta > 0 ? 'up' : sdelta < 0 ? 'down' : 'neutral');
+  setKpi('kpi-boj', last._boj, prev ? (last._boj - prev._boj) * 100 : null, '%', ' bp', true);
+}
+
+// ── Table ──────────────────────────────────────────────────────────────
+function renderTable(rows) {
+  const tbody = document.getElementById('table-body');
+  let html = '';
+  rows.forEach((r, i) => {
+    const prev = i > 0 ? rows[i - 1] : null;
+    const m = C.month(r);
+    const d = m !== null ? new Date(2025, Math.round(m) - 1, 1).toLocaleString('default', { month: 'short', year: '2-digit' }) : 'M' + (i + 1);
+    const usdjpy = r._usdjpy !== null ? r._usdjpy.toFixed(2) : '—';
+    const jgb = r._jgb !== null ? r._jgb.toFixed(3) + '%' : '—';
+    const us10y = r._us10y !== null ? r._us10y.toFixed(3) + '%' : '—';
+    const spread = r._spread !== null ? r._spread.toFixed(1) + 'bp' : '—';
+    const boj = r._boj !== null ? r._boj.toFixed(2) + '%' : '—';
+    const hikep = r._hikep !== null ? (r._hikep * 100).toFixed(0) + '%' : '—';
+
+    let dFX = '—', dFXcls = 'neu';
+    let dJGB = '—', dJGBcls = 'neu';
+    let dUS = '—', dUScls = 'neu';
+
+    if(prev) {
+      if(r._usdjpy !== null && prev._usdjpy !== null) {
+        const v = r._usdjpy - prev._usdjpy; dFX = (v > 0 ? '+' : '') + v.toFixed(1); dFXcls = v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu';
+      }
+      if(r._jgb !== null && prev._jgb !== null) {
+        const v = (r._jgb - prev._jgb) * 100; dJGB = (v > 0 ? '+' : '') + v.toFixed(1) + 'bp'; dJGBcls = v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu';
+      }
+      if(r._us10y !== null && prev._us10y !== null) {
+        const v = (r._us10y - prev._us10y) * 100; dUS = (v > 0 ? '+' : '') + v.toFixed(1) + 'bp'; dUScls = v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu';
+      }
+    }
+
+    const isTrigger = r._usdjpy !== null && r._usdjpy > state.fxRedline;
+    html += `<tr class="${isTrigger ? 'trigger-row' : ''}">
+      <td>${d}</td>
+      <td>${usdjpy}</td>
+      <td class="${dFXcls}">${dFX}</td>
+      <td>${jgb}</td>
+      <td class="${dJGBcls}">${dJGB}</td>
+      <td>${us10y}</td>
+      <td class="${dUScls}">${dUS}</td>
+      <td>${spread}</td>
+      <td class="hike-cell">${boj}</td>
+      <td class="hike-cell ${r._hikep !== null && r._hikep > 0.6 ? 'pos' : ''}">${hikep}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html || '<tr><td colspan="10" style="text-align:center;color:var(--color-text-faint)">No data</td></tr>';
+}
+
+// ── Main render ────────────────────────────────────────────────────────
+function render() {
+  const raw = state.data[state.scenario];
+  if(!raw) { renderFallback(); return; }
+  const rows = applyAdjustments(raw);
+  renderKPIs(rows);
+  renderOverlayChart(rows);
+  renderSpreadChart(rows);
+  renderTable(rows);
+
+  // Gauge — use last row hike prob or derive from spread + FX
+  const last = rows[rows.length - 1];
+  let hikeP = last._hikep;
+  if(hikeP === null) {
+    const spreadBp = last._spread || 200;
+    const fxPressure = last._usdjpy ? Math.max(0, (last._usdjpy - state.fxTarget) / (state.fxRedline - state.fxTarget)) : 0;
+    hikeP = Math.min(0.95, Math.max(0.05, fxPressure * 0.6 + (1 - spreadBp / 300) * 0.4));
+  }
+  renderGauge(hikeP);
+}
+
+function renderFallback() {
+  // Synthetic demonstration data if CSV cannot be loaded
+  const months = [1,2,3,4,5,6,7,8,9,10,11,12];
+  const fallback = months.map(m => ({
+    month: m,
+    usdjpy_med: 155 + m * 0.4 + (Math.random() - 0.5) * 2,
+    jgb10y_med: 2.1 + m * 0.05 + (Math.random() - 0.5) * 0.05,
+    us10y_med:  4.3 + m * 0.02 + (Math.random() - 0.5) * 0.08,
+    boj_rate_med: 0.5 + (m > 6 ? 0.25 : 0),
+    hike_prob: 0.3 + m * 0.04
+  }));
+  state.data[state.scenario] = fallback;
+  render();
+  setStatus('error', 'Using synthetic fallback data — place CSV files in data/');
+}
+
+// ── Controls wiring ────────────────────────────────────────────────────
+document.querySelectorAll('[data-scenario]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-scenario]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.scenario = btn.dataset.scenario;
+    if(!state.data[state.scenario]) {
+      setStatus('loading', 'Loading ' + state.scenario + '…');
+      const base = location.pathname.includes('/docs/') ? '../data/' : './data/';
+      loadCSV(base + 'japan_hormuz_mc_' + state.scenario + '.csv').then(d => {
+        state.data[state.scenario] = d;
+        setStatus('ok', state.scenario + ' loaded');
+        render();
+      }).catch(() => { renderFallback(); });
+    } else render();
+  });
+});
+
+function wireSlider(id, valId, fmt, key) {
+  const el = document.getElementById(id);
+  const vEl = document.getElementById(valId);
+  el.addEventListener('input', () => {
+    state[key] = parseFloat(el.value);
+    vEl.textContent = fmt(state[key]);
+  });
+}
+wireSlider('fx-target',   'fx-target-val',  v => v.toFixed(1),       'fxTarget');
+wireSlider('fx-redline',  'fx-redline-val', v => v.toFixed(1),       'fxRedline');
+wireSlider('repat-mult',  'repat-mult-val', v => v.toFixed(2) + '×', 'repatMult');
+
+document.querySelectorAll('[data-overlay]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.overlay;
+    state.overlays[key] = !state.overlays[key];
+    btn.classList.toggle('on', state.overlays[key]);
+    btn.setAttribute('aria-checked', state.overlays[key]);
+    render();
+  });
+});
+
+document.getElementById('run-btn').addEventListener('click', render);
+
+// ── Boot ───────────────────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>
