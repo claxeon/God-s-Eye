@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "framework": null,
+  "buildCommand": null,
+  "outputDirectory": "frontend",
+  "builds": [
+    {
+      "src": "frontend/gods_eye_dashboard.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    { "src": "/", "dest": "/frontend/gods_eye_dashboard.html" },
+    { "src": "/(.*)", "dest": "/frontend/gods_eye_dashboard.html" }
+  ]
+}

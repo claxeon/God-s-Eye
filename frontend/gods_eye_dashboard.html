@@ -1,900 +1,1408 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>God's Eye — BoJ / Carry Trade Dashboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300..700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>God's Eye — Strategic Intelligence Engine</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
-/* ── Design tokens ─────────────────────────────────────────────────── */
-:root,[data-theme="light"]{
-  --color-bg:#f7f6f2;--color-surface:#f9f8f5;--color-surface-2:#fbfbf9;
-  --color-surface-offset:#f3f0ec;--color-surface-dynamic:#e6e4df;
-  --color-divider:#dcd9d5;--color-border:#d4d1ca;
-  --color-text:#28251d;--color-text-muted:#7a7974;--color-text-faint:#bab9b4;
-  --color-text-inverse:#f9f8f4;
-  --color-primary:#01696f;--color-primary-hover:#0c4e54;--color-primary-active:#0f3638;
-  --color-primary-highlight:#cedcd8;
-  --color-gold:#d19900;--color-blue:#006494;--color-orange:#da7101;
-  --color-success:#437a22;--color-error:#a12c7b;
-  --color-warning:#964219;
-  --radius-sm:0.375rem;--radius-md:0.5rem;--radius-lg:0.75rem;--radius-xl:1rem;--radius-full:9999px;
-  --shadow-sm:0 1px 2px oklch(0.2 0.01 80/0.06);
-  --shadow-md:0 4px 12px oklch(0.2 0.01 80/0.08);
-  --shadow-lg:0 12px 32px oklch(0.2 0.01 80/0.12);
-  --text-xs:clamp(0.75rem,0.7rem + 0.25vw,0.875rem);
-  --text-sm:clamp(0.875rem,0.8rem + 0.35vw,1rem);
-  --text-base:clamp(1rem,0.95rem + 0.25vw,1.125rem);
-  --text-lg:clamp(1.125rem,1rem + 0.75vw,1.5rem);
-  --text-xl:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);
-  --space-1:0.25rem;--space-2:0.5rem;--space-3:0.75rem;--space-4:1rem;
-  --space-5:1.25rem;--space-6:1.5rem;--space-8:2rem;--space-10:2.5rem;
-  --space-12:3rem;--space-16:4rem;
-  --font-body:'Inter','Helvetica Neue',sans-serif;
-  --font-mono:'DM Mono','Courier New',monospace;
-  --transition:180ms cubic-bezier(0.16,1,0.3,1);
-  --sidebar-w:260px;
-}
-[data-theme="dark"]{
-  --color-bg:#171614;--color-surface:#1c1b19;--color-surface-2:#201f1d;
-  --color-surface-offset:#1d1c1a;--color-surface-dynamic:#2d2c2a;
-  --color-divider:#262523;--color-border:#393836;
-  --color-text:#cdccca;--color-text-muted:#797876;--color-text-faint:#5a5957;
-  --color-text-inverse:#2b2a28;
-  --color-primary:#4f98a3;--color-primary-hover:#227f8b;--color-primary-active:#1a626b;
-  --color-primary-highlight:#313b3b;
-  --color-gold:#e8af34;--color-blue:#5591c7;--color-orange:#fdab43;
-  --color-success:#6daa45;--color-error:#d163a7;
-  --color-warning:#bb653b;
-  --shadow-sm:0 1px 2px oklch(0 0 0/0.2);
-  --shadow-md:0 4px 12px oklch(0 0 0/0.3);
-  --shadow-lg:0 12px 32px oklch(0 0 0/0.4);
-}
-@media(prefers-color-scheme:dark){:root:not([data-theme]){
-  --color-bg:#171614;--color-surface:#1c1b19;--color-surface-2:#201f1d;
-  --color-surface-offset:#1d1c1a;--color-surface-dynamic:#2d2c2a;
-  --color-divider:#262523;--color-border:#393836;
-  --color-text:#cdccca;--color-text-muted:#797876;--color-text-faint:#5a5957;
-  --color-text-inverse:#2b2a28;
-  --color-primary:#4f98a3;--color-primary-hover:#227f8b;
-  --color-gold:#e8af34;--color-blue:#5591c7;--color-orange:#fdab43;
-  --color-success:#6daa45;--color-error:#d163a7;--color-warning:#bb653b;
-  --shadow-sm:0 1px 2px oklch(0 0 0/0.2);
-  --shadow-md:0 4px 12px oklch(0 0 0/0.3);
-}}
-
-/* ── Reset ─────────────────────────────────────────────────────────── */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;scroll-behavior:smooth}
-body{min-height:100dvh;font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text);background:var(--color-bg);line-height:1.55}
-img,canvas,svg{display:block;max-width:100%}
-input,button,select{font:inherit;color:inherit}
-button{cursor:pointer;background:none;border:none}
-:focus-visible{outline:2px solid var(--color-primary);outline-offset:3px;border-radius:var(--radius-sm)}
-a,button,[role=button],input,select{transition:color var(--transition),background var(--transition),border-color var(--transition),box-shadow var(--transition)}
-
-/* ── App shell ─────────────────────────────────────────────────────── */
-.app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:48px 1fr;min-height:100dvh}
-@media(max-width:768px){.app{grid-template-columns:1fr;grid-template-rows:48px auto 1fr}}
-
-/* ── Header ────────────────────────────────────────────────────────── */
-.header{
-  grid-column:1/-1;grid-row:1;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:0 var(--space-6);
-  background:var(--color-surface);border-bottom:1px solid var(--color-border);
-  position:sticky;top:0;z-index:100;
-}
-.logo{display:flex;align-items:center;gap:var(--space-3);font-size:var(--text-sm);font-weight:600;letter-spacing:0.01em}
-.logo svg{width:24px;height:24px;flex-shrink:0}
-.header-right{display:flex;align-items:center;gap:var(--space-4)}
-.badge{font-size:var(--text-xs);font-family:var(--font-mono);background:var(--color-primary-highlight);color:var(--color-primary);padding:2px var(--space-2);border-radius:var(--radius-full);font-weight:500}
-.theme-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);color:var(--color-text-muted)}
-.theme-btn:hover{background:var(--color-surface-offset);color:var(--color-text)}
-
-/* ── Sidebar ───────────────────────────────────────────────────────── */
-.sidebar{
-  grid-column:1;grid-row:2;
-  background:var(--color-surface);border-right:1px solid var(--color-border);
-  padding:var(--space-6) var(--space-4);
-  overflow-y:auto;position:sticky;top:48px;height:calc(100dvh - 48px);
-}
-@media(max-width:768px){
-  .sidebar{grid-column:1;grid-row:2;position:static;height:auto;border-right:none;border-bottom:1px solid var(--color-border)}
-}
-.sidebar-section{margin-bottom:var(--space-8)}
-.sidebar-label{
-  font-size:var(--text-xs);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;
-  color:var(--color-text-faint);margin-bottom:var(--space-3);
-}
-.control-group{margin-bottom:var(--space-5)}
-.control-label{font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-2);display:flex;justify-content:space-between;align-items:center}
-.control-label strong{color:var(--color-text);font-family:var(--font-mono);font-size:var(--text-xs);font-weight:500}
-
-/* Scenario pills */
-.scenario-pills{display:flex;gap:var(--space-2);flex-wrap:wrap}
-.pill-btn{
-  font-size:var(--text-xs);font-weight:500;padding:var(--space-1) var(--space-3);
-  border-radius:var(--radius-full);border:1px solid var(--color-border);
-  background:var(--color-surface-2);color:var(--color-text-muted);
-  transition:all var(--transition);
-}
-.pill-btn.active{background:var(--color-primary);color:var(--color-text-inverse);border-color:var(--color-primary)}
-.pill-btn:hover:not(.active){background:var(--color-surface-offset);color:var(--color-text)}
-
-/* Sliders */
-input[type=range]{
-  -webkit-appearance:none;appearance:none;
-  width:100%;height:4px;border-radius:var(--radius-full);
-  background:var(--color-surface-dynamic);outline:none;
-}
-input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;appearance:none;
-  width:16px;height:16px;border-radius:50%;
-  background:var(--color-primary);cursor:pointer;
-  box-shadow:var(--shadow-sm);
-}
-input[type=range]::-moz-range-thumb{
-  width:16px;height:16px;border-radius:50%;
-  background:var(--color-primary);cursor:pointer;border:none;
-}
-
-/* Overlay toggles */
-.overlay-row{display:flex;align-items:center;justify-content:space-between;padding:var(--space-2) 0;border-bottom:1px solid var(--color-divider)}
-.overlay-row:last-child{border-bottom:none}
-.overlay-label{font-size:var(--text-sm);color:var(--color-text-muted);display:flex;align-items:center;gap:var(--space-2)}
-.swatch{width:10px;height:10px;border-radius:2px;flex-shrink:0}
-.toggle-btn{
-  width:36px;height:20px;border-radius:var(--radius-full);
-  background:var(--color-surface-dynamic);position:relative;transition:background var(--transition);
-  flex-shrink:0;
-}
-.toggle-btn.on{background:var(--color-primary)}
-.toggle-btn::after{
-  content:'';position:absolute;top:3px;left:3px;
-  width:14px;height:14px;border-radius:50%;background:#fff;
-  transition:transform var(--transition);
-}
-.toggle-btn.on::after{transform:translateX(16px)}
-
-/* Divider */
-.sidebar hr{border:none;border-top:1px solid var(--color-divider);margin:var(--space-4) 0}
-
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#080c14;color:#e2e8f0;font-family:'SF Mono',Menlo,monospace;font-size:13px}
+.app{max-width:1440px;margin:0 auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+/* Header */
+.hdr{background:#0d1117;border:1px solid #1e2938;border-radius:8px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.hdr-title{font-size:11px;letter-spacing:.18em;color:#ef4444;font-weight:700;text-transform:uppercase}
+.hdr-sub{font-size:10px;color:#4b5563;margin-top:3px}
+.badges{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.badge{padding:3px 9px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.08em}
+.b-red{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+.b-ora{background:rgba(249,115,22,.12);color:#f97316;border:1px solid rgba(249,115,22,.3)}
+.b-yel{background:rgba(234,179,8,.12);color:#eab308;border:1px solid rgba(234,179,8,.3)}
+.b-blu{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
+.b-grn{background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
 /* Run button */
-.run-btn{
-  width:100%;padding:var(--space-3) var(--space-4);
-  background:var(--color-primary);color:var(--color-text-inverse);
-  border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:600;
-  letter-spacing:0.01em;
-}
-.run-btn:hover{background:var(--color-primary-hover)}
-.run-btn:active{background:var(--color-primary-active)}
-
-/* ── Main content ──────────────────────────────────────────────────── */
-.main{grid-column:2;grid-row:2;overflow-y:auto;padding:var(--space-8) var(--space-8) var(--space-16)}
-@media(max-width:768px){.main{grid-column:1;grid-row:3;padding:var(--space-4)}}
-
-/* ── KPI row ───────────────────────────────────────────────────────── */
-.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--space-4);margin-bottom:var(--space-8)}
-.kpi-card{
-  background:var(--color-surface);border:1px solid oklch(from var(--color-text) l c h/0.08);
-  border-radius:var(--radius-lg);padding:var(--space-4) var(--space-5);
-  box-shadow:var(--shadow-sm);
-}
-.kpi-label{font-size:var(--text-xs);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:var(--space-2)}
-.kpi-value{font-size:var(--text-lg);font-weight:700;font-family:var(--font-mono);tabular-nums;color:var(--color-text);line-height:1.1}
-.kpi-delta{font-size:var(--text-xs);font-family:var(--font-mono);margin-top:var(--space-1)}
-.kpi-delta.up{color:var(--color-warning)}
-.kpi-delta.down{color:var(--color-success)}
-.kpi-delta.neutral{color:var(--color-text-faint)}
-
-/* ── Chart cards ───────────────────────────────────────────────────── */
-.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-6);margin-bottom:var(--space-8)}
-@media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
-.chart-card{
-  background:var(--color-surface);border:1px solid oklch(from var(--color-text) l c h/0.08);
-  border-radius:var(--radius-lg);padding:var(--space-5);box-shadow:var(--shadow-sm);
-}
-.chart-card.wide{grid-column:1/-1}
-.chart-title{font-size:var(--text-sm);font-weight:600;color:var(--color-text);margin-bottom:var(--space-1)}
-.chart-sub{font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-4)}
-.chart-wrap{position:relative;height:260px}
-.chart-wrap canvas{width:100%!important}
-
-/* ── Probability gauge ─────────────────────────────────────────────── */
-.gauge-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:260px;gap:var(--space-4)}
-.gauge-arc{position:relative;width:180px;height:90px}
-.gauge-arc svg{overflow:visible}
-.gauge-pct{position:absolute;bottom:0;left:50%;transform:translateX(-50%);font-size:var(--text-xl);font-weight:700;font-family:var(--font-mono);color:var(--color-text)}
-.gauge-sub{font-size:var(--text-xs);color:var(--color-text-muted);text-align:center;max-width:160px}
-
-/* ── WoW table ─────────────────────────────────────────────────────── */
-.table-card{
-  background:var(--color-surface);border:1px solid oklch(from var(--color-text) l c h/0.08);
-  border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:var(--space-8);
-}
-.table-header{padding:var(--space-4) var(--space-6);border-bottom:1px solid var(--color-divider)}
-.table-title{font-size:var(--text-sm);font-weight:600}
-.table-sub{font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px}
-.data-table{width:100%;border-collapse:collapse;font-size:var(--text-sm)}
-.data-table th{font-size:var(--text-xs);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--color-text-muted);padding:var(--space-3) var(--space-4);text-align:right;background:var(--color-surface-offset);border-bottom:1px solid var(--color-divider)}
-.data-table th:first-child{text-align:left}
-.data-table td{padding:var(--space-3) var(--space-4);text-align:right;font-family:var(--font-mono);font-size:var(--text-xs);border-bottom:1px solid var(--color-divider);tabular-nums}
-.data-table td:first-child{text-align:left;font-family:var(--font-body);color:var(--color-text-muted)}
-.data-table tr:last-child td{border-bottom:none}
-.data-table tr:hover td{background:var(--color-surface-offset)}
-.pos{color:var(--color-warning)}.neg{color:var(--color-success)}.neu{color:var(--color-text-faint)}
-.hike-cell{font-weight:600}
-.trigger-row td{background:color-mix(in oklch,var(--color-warning) 6%,var(--color-surface))}
-.trigger-row td:first-child{border-left:2px solid var(--color-warning)}
-
-/* ── Status bar ────────────────────────────────────────────────────── */
-.status-bar{
-  position:fixed;bottom:0;left:var(--sidebar-w);right:0;
-  background:var(--color-surface);border-top:1px solid var(--color-border);
-  padding:var(--space-2) var(--space-6);
-  display:flex;align-items:center;justify-content:space-between;
-  font-size:var(--text-xs);color:var(--color-text-muted);z-index:50;
-}
-@media(max-width:768px){.status-bar{left:0}}
-.status-dot{width:7px;height:7px;border-radius:50%;background:var(--color-success);display:inline-block;margin-right:var(--space-2);flex-shrink:0}
-.status-dot.loading{background:var(--color-gold);animation:pulse 1s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-
-/* ── Scrollbar ─────────────────────────────────────────────────────── */
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--color-surface-dynamic);border-radius:var(--radius-full)}
+.rbtn{padding:8px 18px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.1em;cursor:pointer;font-family:inherit;transition:background .2s}
+.rbtn:hover{background:#dc2626}
+.rbtn:disabled{background:#1f2937;color:#4b5563;cursor:default}
+/* Progress */
+.prog-wrap{height:3px;background:#1e2938;border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#ef4444,#f97316);border-radius:2px;transition:width .1s}
+/* Grid */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:1000px){.g2,.g3{grid-template-columns:1fr}}
+/* Card */
+.card{background:#0d1117;border:1px solid #1e2938;border-radius:8px;padding:14px 16px}
+.ctitle{font-size:10px;letter-spacing:.12em;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.dot{width:6px;height:6px;border-radius:50%;background:#ef4444;flex-shrink:0}
+.dot-b{background:#3b82f6}.dot-o{background:#f97316}.dot-g{background:#22c55e}.dot-p{background:#a855f7}
+/* Controls */
+.ctrls{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;background:#0d1117;border:1px solid #1e2938;border-radius:8px;padding:12px 16px}
+.ctrl label{font-size:10px;color:#4b5563;text-transform:uppercase;letter-spacing:.08em;display:flex;justify-content:space-between}
+.ctrl label span{color:#f97316;font-weight:700}
+input[type=range]{width:100%;accent-color:#ef4444;margin-top:4px;cursor:pointer}
+/* SVG charts */
+svg.chart{width:100%;overflow:visible}
+/* Scenario bars */
+.sbar-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.sbar-lbl{font-size:10px;color:#9ca3af;width:12px;flex-shrink:0}
+.sbar-name{font-size:9px;color:#6b7280;width:165px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbar-track{flex:1;height:18px;background:#1e2938;border-radius:3px;overflow:hidden;position:relative}
+.sbar-fill{height:100%;border-radius:3px;display:flex;align-items:center;padding-left:6px;transition:width .8s ease}
+.sbar-pct{font-size:10px;font-weight:700;color:#fff}
+/* Event frequency */
+.ebar-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.ebar-name{font-size:10px;color:#9ca3af;width:155px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ebar-track{flex:1;height:14px;background:#1e2938;border-radius:2px;overflow:hidden}
+.ebar-fill{height:100%;border-radius:2px;transition:width .8s ease}
+.ebar-pct{font-size:10px;color:#6b7280;width:32px;text-align:right;flex-shrink:0}
+/* Regime cards */
+.rcards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rcard{background:#111827;border:1px solid #1e2938;border-radius:6px;padding:10px 12px}
+.rtitle{font-size:10px;font-weight:700;letter-spacing:.06em;margin-bottom:4px}
+.rpct{font-size:22px;font-weight:700;line-height:1}
+.rstat{font-size:9px;color:#6b7280;margin-top:3px}
+.rtags{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+.rtag{font-size:9px;padding:2px 5px;border-radius:3px;background:rgba(255,255,255,.05);color:#6b7280}
+.rtag-hot{background:rgba(239,68,68,.12);color:#fca5a5}
+/* Leg grid */
+.lgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.lcell{background:#111827;border-radius:5px;padding:8px 6px;text-align:center}
+.lnum{font-size:9px;color:#4b5563}
+.lval{font-size:17px;font-weight:700;line-height:1.2}
+.llbl{font-size:8px;color:#374151;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Footer */
+.foot{font-size:9px;color:#1f2938;text-align:center;padding:6px;letter-spacing:.05em}
+/* Actor registry */
+.actor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.acard{background:#111827;border:1px solid #1e2938;border-radius:6px;padding:10px 12px;position:relative}
+.acard-tier1{border-left:3px solid #ef4444}
+.acard-tier2{border-left:3px solid #f97316}
+.acard-tier3{border-left:3px solid #3b82f6}
+.acard-tier4{border-left:3px solid #6b7280}
+.acard-name{font-size:11px;font-weight:700;color:#e2e8f0;margin-bottom:3px}
+.acard-role{font-size:9px;color:#6b7280;margin-bottom:5px;line-height:1.4}
+.acard-signal{font-size:9px;color:#4b5563;border-top:1px solid #1e2938;padding-top:5px;margin-top:5px;line-height:1.4}
+.acard-signal b{color:#9ca3af}
+.tier-badge{font-size:8px;font-weight:700;letter-spacing:.08em;padding:2px 5px;border-radius:3px;float:right;margin-top:-1px}
+.t1{background:rgba(239,68,68,.15);color:#ef4444}
+.t2{background:rgba(249,115,22,.15);color:#f97316}
+.t3{background:rgba(59,130,246,.15);color:#60a5fa}
+.t4{background:rgba(107,114,128,.15);color:#9ca3af}
+.posture{font-size:8px;padding:2px 6px;border-radius:3px;display:inline-block;margin-bottom:5px}
+.pos-esc{background:rgba(239,68,68,.1);color:#fca5a5}
+.pos-sup{background:rgba(34,197,94,.1);color:#86efac}
+.pos-neu{background:rgba(234,179,8,.1);color:#fde047}
+.pos-mech{background:rgba(107,114,128,.1);color:#9ca3af}
+/* Correlation heatmap */
+.corrmap{display:grid;gap:2px}
+.corr-cell{display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;border-radius:2px;cursor:default}
+/* Regime explanations */
+.regime-exp{font-size:9px;color:#6b7280;line-height:1.5;margin-top:6px;border-top:1px solid #1e2938;padding-top:6px}
+/* CI badge */
+.ci-badge{font-size:8px;color:#374151;margin-left:6px}
 </style>
 </head>
 <body>
-<div class="app">
+<div id="root"><div style="color:#4b5563;padding:40px;font-family:monospace;text-align:center">Loading God's Eye Engine...</div></div>
 
-<!-- ── Header ─────────────────────────────────────────────────── -->
-<header class="header">
-  <div class="logo">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-label="God's Eye logo">
-      <circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/>
-      <ellipse cx="12" cy="12" rx="10" ry="5" stroke-dasharray="0"/>
-      <ellipse cx="12" cy="12" rx="10" ry="5" transform="rotate(60 12 12)"/>
-      <ellipse cx="12" cy="12" rx="10" ry="5" transform="rotate(120 12 12)"/>
+<script type="text/babel">
+const {useState,useEffect,useCallback,useRef} = React;
+
+// ─── Actor Registry Data ──────────────────────────────────────────────────────
+const ACTORS = [
+  // Tier 1 — Kinetic Combatants
+  {tier:1,flag:'🇺🇸',name:'United States',role:'Primary combatant, dollar hegemon. Two-priority split: eliminate Iran nuclear program AND keep oil below $100. SPR floor Jul 1 removes primary energy intervention capacity.',posture:'esc',postureLabel:'ESCALATING',signal:'GENIUS Act signing · SPR floor hit · TIC buyback language',constraint:'Carrier rotation gaps = Israel unilateral windows · Supply-side inflation locks Fed out'},
+  {tier:1,flag:'🇮🇱',name:'Israel',role:'Unilateral actor willing to exceed US authorization. South Pars strike is the confirmed behavioral baseline. Creates faits accomplis that force US escalation.',posture:'esc',postureLabel:'ESCALATING',signal:'IDF northern command mobilization · Netanyahu coalition vote count · US carrier gap weeks',constraint:'US air corridor dependency for deep strikes · Hostage negotiation procedural delays'},
+  {tier:1,flag:'🇮🇷',name:'Iran / IRGC',role:'Defensive combatant with DUAL utility: civilian FM wants reconstruction funding; IRGC wants permanent Hormuz leverage via PGSA. These objectives CONFLICT.',posture:'mech',postureLabel:'DUAL-TRACK',signal:'Mojtaba Khamenei IRGC authority consolidation · PGSA toll revenue reports · Civilian FM travel',constraint:'IRGC autonomous mandate — civilian ceasefire signals ≠ IRGC operational restraint'},
+  {tier:1,flag:'☠️',name:'Axis of Resistance',role:'Houthis + Hezbollah + Iraqi Militias. Post-IRGC decapitation: MORE dangerous tactically (no central restraint), LESS dangerous strategically (no synchronized campaign).',posture:'esc',postureLabel:'ACTIVE',signal:'AIS Bab al-Mandab routing · Houthi declared blockade Jun 8 CONFIRMED · Yanbu range indicators',constraint:'Houthis may continue independently if Iran ceasefire — do NOT assume stand-down'},
+  // Tier 2 — GCC
+  {tier:2,flag:'🇸🇦',name:'Saudi Arabia',role:'GCC anchor. Dollar peg is the Leg 2 nuclear option — weapon held in reserve. MBS regime survival requires oil above $85 fiscal breakeven AND US security guarantee.',posture:'neu',postureLabel:'WATCHING',signal:'Any peg review language = Leg 2 → 90%+ · OPEC+ split vote · Yanbu infrastructure status',constraint:'US security guarantee visibly degrading · Yanbu is the only bypass for Hormuz closure'},
+  {tier:2,flag:'🇶🇦',name:'Qatar',role:'Paradox state: hosts CENTCOM while infrastructure burns. Only Western-aligned actor with a direct Tehran back-channel Washington does not control. PRIMARY Scenario C pathway.',posture:'sup',postureLabel:'MEDIATING',signal:'Qatar FM travel to Tehran · QIA TIC USD reduction · LNG reconstruction funding announcements',constraint:'Ras Laffan trains 4+6 offline 3-5 yrs = commercial urgency for resolution'},
+  {tier:2,flag:'🇦🇪',name:'UAE / ADIA',role:'Financial hub under kinetic stress. Al-Dhafra hit. Publicly rebuked US/Israel on South Pars — rare GCC independent posture. ADIA USD diversification = Leg 2 signal.',posture:'neu',postureLabel:'PIVOTING',signal:'ADIA TIC position (Jun 18 data) · Second UAE rebuke of US/Israel · Dubai yuan clearing volume',constraint:'Al-Dhafra security dependency · Cannot fully exit dollar without alternative architecture'},
+  {tier:2,flag:'🏜️',name:'GCC Periphery',role:'Kuwait (FM declared), Bahrain (FM + US Fifth Fleet), Oman (Duqm struck despite neutrality). All follow Saudi/UAE lead. Oman mediation capacity compromised.',posture:'neu',postureLabel:'REACTIVE',signal:'Oman FM Tehran travel (secondary Scenario C) · GCC joint dollar peg statement',constraint:'Near-zero independent foreign policy capacity'},
+  // Tier 3 — Major Powers
+  {tier:3,flag:'🇯🇵',name:'Japan / BOJ',role:'TWO-FIRE TRAP: cannot hike into energy-shock contraction; cannot hold while yen bleeds to 165+. $1.24T UST — abrupt reversal from +$113B 12-month accumulation. FLASH CRASH TRIGGER.',posture:'mech',postureLabel:'MECHANICAL',signal:'BOJ June 16-17 statement language · USD/JPY break below 157 pre-meeting · CFTC JPY short positioning',constraint:'No reassurance option — supply-side inflation prevents BOJ pivot (Aug 2024 script unavailable)'},
+  {tier:3,flag:'🇨🇳',name:'China / PBOC',role:'Strategic beneficiary. Building yuan crude settlement + landed inventory while OECD draws. Taiwan contingency prep uses US bandwidth depletion window.',posture:'neu',postureLabel:'ACCUMULATING',signal:'Yuan crude settlement volume >3% global trade · PLAN Taiwan Strait exercises during Gulf carrier gaps',constraint:'IRGC unpredictability — bilateral Hormuz deals are IRGC-contingent, not state-guaranteed'},
+  {tier:3,flag:'🇷🇺',name:'Russia',role:'Strategic patience. Every day US is tied down in Gulf = Ukraine operational window. Urals revenue at $20 Brent discount. OPEC+ co-anchor on price floor defense.',posture:'neu',postureLabel:'PATIENT',signal:'Ukraine operational tempo during Gulf carrier rotation gaps · Russian OPEC+ vote on production',constraint:'Cannot open second theater — Ukraine consumes military/economic capacity'},
+  {tier:3,flag:'🇮🇳',name:'India',role:'Strategic non-aligned energy opportunist. Two tankers through Hormuz with IRGC permission CONFIRMED. Rupee passage architecture = Leg 2 structural signal if formalized at scale.',posture:'neu',postureLabel:'AUTONOMOUS',signal:'INR crude contract with Iran · Indian refinery Hormuz-origin crude import volume',constraint:'QUAD membership limits full Iran alignment · Pakistan instability = Gulf engagement ceiling'},
+  // Tier 4 — Financial / Mechanical
+  {tier:4,flag:'🏛️',name:'Federal Reserve',role:'Reactive stabilizer. ALL TOOLS ARE DEMAND-SIDE — cannot cure supply-side inflation. Emergency cut = 5-8% equity bounce only. Stagflation trap: fight inflation OR recession, not both.',posture:'mech',postureLabel:'CONSTRAINED',signal:'VIX > 60 → emergency cut likely · Section 13(3) Treasury consultation · "Market functioning" language = stealth QE',constraint:'Supply shock cannot be rate-cured · Fed credibility requires it not be seen as monetizing'},
+  {tier:4,flag:'🏦',name:'US Treasury',role:'Dollar system architect under stress. TIC March confirms official selling -$37.9B. GENIUS Act as structural demand replacement. Watching flows internally 45 days before public release.',posture:'sup',postureLabel:'MANAGING',signal:'GENIUS Act signing · Treasury buyback "liquidity management" language · June 18 TIC April data',constraint:'Cannot coordinate explicitly with Fed · GENIUS Act not yet law = demand replacement not operational'},
+  {tier:4,flag:'📉',name:'Carry Trade Desks',role:'NOT a decision actor — a LOADED SPRING. $4-20T JPY-funded positions. No coordination mechanism. BOJ hike → USD/JPY < 155 → self-executing simultaneous exit. No negotiation possible.',posture:'mech',postureLabel:'MECHANICAL',signal:'USD/JPY < 157 pre-meeting = already pricing unwind · CFTC COT JPY net short · VIX term structure inversion',constraint:'None — mechanical system. Only the BOJ can prevent trigger. Once fired, cascade is self-executing'},
+  {tier:4,flag:'🏗️',name:'Private Credit Complex',role:'Apollo gating at 45c confirmed. Barings fulfilling 44.3% of redemptions. LIQUIDITY MISMATCH: illiquid assets vs semi-liquid redemption windows. Leg 3 at 67%.',posture:'esc',postureLabel:'STRESSED',signal:'Third fund gating = cascade threshold · Q2 Dimon language vs April 6 baseline · Energy leveraged loan defaults',constraint:'Fed Section 13(3) backstop available but not yet activated · Illiquid assets cannot be rapidly sold'},
+  {tier:4,flag:'⚡',name:'Stablecoin / Rails',role:'DUAL NATURE: GENIUS Act = forced UST demand ($144B captive buyer); Tether de-peg = emergency UST SELLER. Same complex is both structural fix and systemic risk.',posture:'neu',postureLabel:'DUAL RISK',signal:'GENIUS Act signing · Tether reserve attestation under stress · CLARITY Act progress · CBDC pilot announcements',constraint:'Tether $144B unaudited — full audit never submitted · CBDC interoperability closes XRP window ~2027'},
+  {tier:4,flag:'🛢️',name:'OPEC+',role:'Production floor defense. Brent target band $85-105. Spare capacity exists but CANNOT BE DEPLOYED through closed Hormuz. Even production increase announcement ≠ market delivery.',posture:'sup',postureLabel:'FLOOR DEFENSE',signal:'OPEC+ meeting vote splits (unanimous vs contested) · Saudi actual vs quota production · US pressure response',constraint:'Hormuz closure means production increase is stranded — cannot reach market through closed strait'},
+];
+
+// ─── Regime Explanations ──────────────────────────────────────────────────────
+const REGIME_EXPLANATIONS = {
+  'Financial Cascade — BOJ Flash Crash': 'The BOJ hikes, the carry trade unwinds at 1.67× August 2024 scale, and the financial system absorbs the shock without major kinetic escalation. Flash crash fires weeks 2-4. The energy war continues but Hormuz remains on PGSA toll status — Iran earns revenue without provoking maximum response. The US financial crisis consumes attention, delaying kinetic escalation. Private credit gates cascade post-crash. Brent elevated but not extreme.',
+  'Dual Chokepoint — Extreme Supply Shock': 'Both Hormuz (PGSA/mines) and Bab al-Mandab (Houthis, Jun 8 declaration operative) physically close. Saudi Yanbu bypass potentially struck. $185-220 Brent. The financial flash crash may also occur but is secondary to the physical supply destruction. IEA emergency release capacity exhausted. Winter 2026/27 enters with no buffer. Most severe outcome for XLE, tanker equities, and energy supply chains globally.',
+  'Diplomatic Resolution — Scenario C Path': 'Qatar activates Tehran back-channel. Hormuz moves from PGSA toll to partial open under negotiated framework. Temporary 5-8% equity bounce. Thesis delayed, NOT broken — South Pars remains offline 18+ months, Ras Laffan trains 4/6 offline 3-5 years regardless. Ceasefire holds longer than pattern average. BOJ may hold June meeting given energy relief. Flash crash probability drops significantly but does not go to zero.',
+  'Physical Hormuz Closure — Scenario D': 'IRGC autonomous action deploys mines, physically closing Hormuz beyond PGSA toll architecture. Civilian government unable to prevent. $160+ Brent. Bab al-Mandab remains open (Houthis not yet authorized for dual chokepoint). Flash crash still occurs via BOJ channel but is amplified by energy shock. PGSA framework superseded by kinetic action — reversal requires mine clearing under military threat.',
+  'Synchronized Crisis — Finance + Energy': 'The worst-case combination: BOJ flash crash fires AND significant kinetic escalation occurs simultaneously. Financial system is in VIX 65+ territory while Brent spikes $155-175. Private credit cascade + tether de-peg amplify the financial leg while Houthi/IRGC escalation amplifies the energy leg. Fed emergency cut fires but cannot address supply shock. SPR floor hit removes the last suppression mechanism into the crisis.',
+  'Full Escalation — All Legs Active': 'Israel unilateral strike triggers US escalation (Scenario A pathway). IRGC zero-restraint response. All proxy networks activated simultaneously. All 9 legs confirming. Composite approaches 97%+. Historical analogs: 1973 OPEC crisis magnitude for energy; 2008 financial crisis magnitude for credit; no direct analog for simultaneous occurrence.',
+  'Prolonged Duration — No Flash Crash Path': 'BOJ holds in June (ceasefire reduces energy prices, giving cover for hold). Carry trade does not unwind at scale. War continues with PGSA toll structure intact — Iran earns, doesn\'t close. Duration repricing continues slowly. Ceasefire cycle extends. This is the 16% of runs where the June 16-17 BOJ trigger does not fire. Leg scores gradually increase but no discrete flash crash event. The thesis plays out over 2027 instead of H2 2026.',
+  'Mixed Escalation — Partial Resolution': 'Ceasefire signals alternate with collapses per the documented pattern. Some kinetic events occur but not full escalation. Financial stress builds without acute flash crash. Intermediate Brent levels. The framework\'s coupling rules produce a gradual convergence rather than a discrete event. Composite score rises but CB-E does not fully activate.',
+};
+
+// ─── Seeded RNG ───────────────────────────────────────────────────────────────
+function mkRng(seed) {
+  let s = (seed >>> 0) || 1;
+  return function() {
+    s |= 0; s = s + 0x6D2B79F5 | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = t + Math.imul(t ^ (t >>> 7), 61 | t) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function gauss(r, mu, sd) {
+  const u = Math.max(1e-10, 1 - r()), v = r();
+  return mu + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+// ─── Weighted Probability ─────────────────────────────────────────────────────
+function wp(base) {
+  let p = base;
+  return {
+    esc(cond, m) { if (cond && m > 1) p *= m; return this; },
+    sup(cond, m) { if (cond && m >= 0 && m < 1) p *= m; return this; },
+    cap(mx)      { p = Math.min(p, mx); return this; },
+    roll(r)      { return r() < Math.max(0, Math.min(1, p)); },
+    val()        { return Math.max(0, Math.min(1, p)); }
+  };
+}
+
+// ─── Simulation ───────────────────────────────────────────────────────────────
+function mkState() {
+  return {
+    w: 0,
+    l1:0.99,l2:0.89,l3:0.67,l4:0.32,l5:0.83,l6:0.45,l7:0.42,l8:0.89,l9:0.38,
+    brent:118, vix:22, jpy:159, yld:4.6, spr:357,
+    bojHiked:false, unwind:false, crash:false,
+    bab:false, babDecl:true, mines:false, israel:false,
+    ceasefire:false, cascade:false, tether:false,
+    sprFloor:false, saudiPeg:false, yanbu:false, genius:false,
+    pgsa:true, fedCut:false, ticSell:false,
+    pA:0.12, pB:0.38, pC:0.28, pD:0.15, pE:0.07,
+    evts:[]
+  };
+}
+
+function norm(s) {
+  const t = s.pA + s.pB + s.pC + s.pD + s.pE;
+  if (!t) return;
+  s.pA = Math.max(0.01, s.pA/t); s.pB = Math.max(0.01, s.pB/t);
+  s.pC = Math.max(0.01, s.pC/t); s.pD = Math.max(0.01, s.pD/t);
+  s.pE = Math.max(0.01, s.pE/t);
+}
+
+function simRun(params, r) {
+  const p = {
+    hikeWk: Math.max(1, 1 + Math.round(gauss(r, 0, 1))),
+    hikeP: Math.min(0.97, Math.max(0.5, gauss(r, params.bojP, 0.07))),
+    genWk: 6 + Math.floor(r() * 14),
+    mineP: r() * 0.025 + 0.015,
+    ilP:   r() * 0.014 + 0.008,
+    babP:  (r() * 0.025 + 0.020) * params.houth,
+    mediP: r() * 0.05  + 0.04,
+    gateP: r() * 0.02  + 0.015,
+    tetP:  r() * 0.009 + 0.006,
+  };
+
+  const hist = [];
+  let s = mkState();
+  hist.push(Object.assign({}, s));
+
+  let hikeFired=false, hikeWkA=null, uwFired=false, ustDist=false, gates=2;
+
+  for (let w=1; w<=29; w++) {
+    s = Object.assign({}, s, {w, evts:[]});
+
+    // BOJ hike
+    if (!hikeFired && w === p.hikeWk) {
+      const hold = (s.ceasefire && s.brent < 95) ? 0.75 : 1.0;
+      if (r() < p.hikeP * hold) {
+        hikeFired = true; hikeWkA = w;
+        s.bojHiked = true;
+        s.jpy -= r()*3+3;
+        s.unwind = true;
+        s.l2 = Math.min(1, s.l2+0.02);
+        s.pB = Math.min(0.90, s.pB+0.15); s.pC -= 0.05;
+        norm(s); s.evts = s.evts.concat(['BOJ_HIKE']);
+      }
+    }
+
+    // Carry unwind (1-2 wks after hike)
+    if (hikeFired && !uwFired) {
+      const lag = w - hikeWkA;
+      const up = lag===1 ? 0.70 : lag>=2 ? 0.90 : 0;
+      if (up > 0 && r() < up) {
+        uwFired = true;
+        s.vix = Math.min(90, s.vix + 58);
+        s.yld += 0.67; s.jpy -= r()*7+4;
+        s.l2 = Math.min(1, s.l2+0.03);
+        s.evts = s.evts.concat(['CARRY_UNWIND']);
+        if (s.vix > 40 && !s.crash) {
+          s.crash = true;
+          s.l3 = Math.min(1, s.l3+0.08);
+          s.pB = Math.min(0.95, s.pB+0.20); norm(s);
+          s.evts = s.evts.concat(['FLASH_CRASH']);
+        }
+      }
+    }
+    if (hikeFired && uwFired && !ustDist) {
+      ustDist = true;
+      s.ticSell = true; s.l2 = Math.min(1, s.l2+0.03); s.yld += 0.15;
+      s.evts = s.evts.concat(['TIC_SELL']);
+    }
+
+    // Fed cut
+    if (!s.fedCut && s.crash && r() < 0.55) {
+      s.fedCut = true; s.vix = Math.max(15, s.vix-12); s.yld -= 0.20;
+      s.evts = s.evts.concat(['FED_CUT']);
+    }
+
+    // IRGC mines
+    if (!s.mines) {
+      if (wp(p.mineP).esc(s.israel,4.5).esc(s.brent<80,2.5).esc(s.crash,1.5)
+         .sup(s.pgsa,0.30).sup(s.ceasefire,0.15).sup(!s.israel&&w<6,0.50).cap(0.20).roll(r)) {
+        s.mines = true;
+        s.brent += r()*35+25; s.l1=Math.min(1,s.l1+0.005); s.l8=Math.min(1,s.l8+0.05);
+        s.pD=Math.min(0.75,s.pD+0.35); s.pC-=0.15; s.pB-=0.10; norm(s);
+        s.evts = s.evts.concat(['IRGC_MINES']);
+      }
+    }
+
+    // Israel
+    if (!s.israel) {
+      if (wp(p.ilP).esc(s.mines,3.5).esc(w>12,1.8).sup(s.ceasefire,0.20)
+         .sup(s.crash,0.50).sup(w<=3,0.40).cap(0.12).roll(r)) {
+        s.israel = true;
+        s.brent += r()*20+15; s.vix=Math.min(80,s.vix+18); s.l1=Math.min(1,s.l1+0.005);
+        s.l6=Math.min(1,s.l6+0.10);
+        s.pA=Math.min(0.70,s.pA+0.28); s.pC-=0.12; s.pB-=0.08; norm(s);
+        s.evts = s.evts.concat(['ISRAEL']);
+      }
+    }
+
+    // Houthis / Bab al-Mandab
+    if (!s.bab) {
+      const decl = s.babDecl && w>=2 ? 1.6 : 1.0;
+      if (wp(p.babP).esc(s.mines,3.5).esc(s.israel,2.5).esc(decl>1,decl)
+         .esc(w>8,1.6).sup(w<2&&!s.babDecl,0.15)
+         .sup(s.ceasefire&&params.cSup<1.0,0.30).sup(s.pC>0.4,0.25).cap(0.18).roll(r)) {
+        s.bab = true;
+        s.brent += r()*35+20; s.l8=Math.min(1,s.l8+0.06);
+        s.pE=Math.min(0.65,s.pE+0.25); s.pB-=0.08; s.pC-=0.10; norm(s);
+        s.evts = s.evts.concat(['BAB_MANDAB']);
+      }
+    }
+
+    // Yanbu
+    if (!s.yanbu && s.bab) {
+      if (wp(0.005).esc(s.bab,4.0).cap(0.08).roll(r)) {
+        s.yanbu = true;
+        s.brent += r()*60+40;
+        s.pE=Math.min(0.85,s.pE+0.40); norm(s);
+        s.evts = s.evts.concat(['YANBU']);
+      }
+    }
+
+    // Ceasefire
+    if (!s.ceasefire) {
+      if (wp(p.mediP).esc(s.brent>125,1.8).sup(s.mines||s.bab,0.20).cap(0.12).roll(r)) {
+        s.ceasefire = true;
+        s.yld -= 0.12; s.brent -= r()*10+5; s.l1=Math.max(0.45,s.l1-0.08);
+        s.pC=Math.min(0.60,s.pC+0.18); s.pB-=0.08; s.pA-=0.05; norm(s);
+        s.evts = s.evts.concat(['CEASEFIRE']);
+      }
+    } else if (r() < 0.20) {
+      s.ceasefire = false;
+      s.yld += 0.15; s.brent += r()*8+4; s.l1=Math.min(1,s.l1+0.05);
+      s.pC=Math.max(0.05,s.pC-0.10); s.pB+=0.05; norm(s);
+      s.evts = s.evts.concat(['CF_COLLAPSE']);
+    }
+
+    // Saudi peg
+    if (!s.saudiPeg) {
+      if (wp(0.008).esc(s.crash,3.5).esc(s.ticSell,2.0).sup(!s.crash,0.30)
+         .sup(s.ceasefire,0.40).cap(0.06).roll(r)) {
+        s.saudiPeg = true; s.l2=Math.min(1,s.l2+0.12);
+        s.evts = s.evts.concat(['SAUDI_PEG']);
+      }
+    }
+
+    // Credit cascade
+    if (!s.cascade) {
+      if (wp(p.gateP).esc(s.crash,4.5).esc(s.brent>130,2.0).esc(s.vix>45,2.5)
+         .sup(s.fedCut,0.45).sup(w<8,0.50).cap(0.07).roll(r)) {
+        gates++;
+        if (gates >= 3) {
+          s.cascade = true; s.l3=Math.min(1,s.l3+0.12); s.vix=Math.min(85,s.vix+12);
+          s.evts = s.evts.concat(['CASCADE']);
+        } else {
+          s.l3=Math.min(1,s.l3+0.05);
+          s.evts = s.evts.concat(['GATE']);
+        }
+      }
+    }
+
+    // Tether
+    if (!s.tether) {
+      if (wp(p.tetP).esc(s.crash,8.0).esc(s.cascade,4.0).esc(s.vix>55,3.0)
+         .sup(s.genius,0.40).sup(!s.crash,0.12).cap(0.025).roll(r)) {
+        s.tether = true; s.l4=Math.min(1,s.l4+0.10);
+        s.evts = s.evts.concat(['TETHER']);
+      }
+    }
+
+    // Genius Act
+    if (!s.genius && w===p.genWk && r()<0.68) {
+      s.genius = true; s.l4=Math.min(1,s.l4+0.15);
+      s.evts = s.evts.concat(['GENIUS']);
+    }
+
+    // SPR draw
+    const dr = s.spr>380?8.5:s.spr>350?7.5:s.spr>330?5.0:1.5;
+    s.spr = Math.max(273, s.spr - dr);
+    if (s.spr<=330 && !s.sprFloor) {
+      s.sprFloor = true; s.brent += r()*14+6;
+      s.evts = s.evts.concat(['SPR_FLOOR']);
+    }
+
+    // Macro drift
+    const bt = s.yanbu?215:s.bab&&s.mines?185:s.bab?165:s.mines?155:s.ceasefire?96:s.pC>0.4?98:120;
+    s.brent += (bt-s.brent)*0.08 + (r()-0.5)*6;
+    s.brent = Math.max(55, Math.min(250, s.brent));
+    const vt = s.crash?(s.cascade?42:35):18;
+    s.vix += (vt-s.vix)*0.12 + (r()-0.5)*3;
+    s.vix = Math.max(12, Math.min(90, s.vix));
+    s.jpy += s.bojHiked ? gauss(r,-0.3,0.8) : gauss(r,0.1,0.5);
+    s.jpy = Math.max(130, Math.min(170, s.jpy));
+    s.yld += (s.crash?5.5:4.8 - s.yld)*0.05 + (r()-0.5)*0.16;
+    s.yld = Math.max(3, Math.min(9, s.yld));
+    for (const k of ['l1','l2','l3','l4','l5','l6','l7','l8','l9'])
+      s[k] = Math.max(0, Math.min(1, s[k]));
+    norm(s);
+    hist.push(Object.assign({}, s));
+  }
+  return hist;
+}
+
+// ─── Gaussian Mixture Model (EM, diagonal covariance, BIC selection) ─────────
+function dist2(a,b){ return a.reduce((s,v,i)=>s+(v-b[i])*(v-b[i]),0); }
+
+// Diagonal GMM: params per component = (d means + d variances + 1 weight) = 2d+1
+// BIC = -2*logL + (k*(2d+1) - 1) * ln(n)
+function gmm(data, k, maxIter=80) {
+  const n=data.length, d=data[0].length;
+  const eps=1e-8;
+
+  // K-Means++ init for means
+  const means=[];
+  means.push(data[Math.floor(Math.random()*n)].slice());
+  while(means.length<k){
+    const ds=data.map(pt=>Math.min(...means.map(c=>dist2(pt,c))));
+    const tot=ds.reduce((a,b)=>a+b,0);
+    let rv=Math.random()*tot,idx=0;
+    for(;idx<n-1&&(rv-=ds[idx])>0;idx++);
+    means.push(data[idx].slice());
+  }
+
+  // Init variances (global variance per dim), uniform weights
+  const allMu=Array(d).fill(0).map((_,di)=>data.reduce((s,r)=>s+r[di],0)/n);
+  let vars=means.map(()=>Array(d).fill(0).map((_,di)=>
+    data.reduce((s,r)=>s+(r[di]-allMu[di])**2,0)/n+1e-2
+  ));
+  let weights=Array(k).fill(1/k);
+
+  // EM iterations
+  let R=Array(n).fill(null).map(()=>Array(k).fill(1/k));
+  let logL=-Infinity;
+
+  for(let it=0;it<maxIter;it++){
+    // E-step: compute responsibilities
+    const logResp=Array(n).fill(null).map(()=>Array(k).fill(0));
+    for(let i=0;i<n;i++){
+      for(let j=0;j<k;j++){
+        let ll=Math.log(weights[j]+eps);
+        for(let di=0;di<d;di++){
+          const v=vars[j][di];
+          ll -= 0.5*(Math.log(2*Math.PI*v+eps) + (data[i][di]-means[j][di])**2/(v+eps));
+        }
+        logResp[i][j]=ll;
+      }
+      // Log-sum-exp for numerical stability
+      const mx=Math.max(...logResp[i]);
+      const lse=mx+Math.log(logResp[i].reduce((s,v)=>s+Math.exp(v-mx),0));
+      for(let j=0;j<k;j++) R[i][j]=Math.exp(logResp[i][j]-lse);
+    }
+
+    // M-step: update params
+    const Nk=Array(k).fill(0).map((_,j)=>R.reduce((s,ri)=>s+ri[j],0));
+    for(let j=0;j<k;j++){
+      if(Nk[j]<eps){weights[j]=eps/k;continue;}
+      weights[j]=Nk[j]/n;
+      means[j]=Array(d).fill(0).map((_,di)=>R.reduce((s,ri,i)=>s+ri[j]*data[i][di],0)/Nk[j]);
+      vars[j]=Array(d).fill(0).map((_,di)=>
+        Math.max(eps, R.reduce((s,ri,i)=>s+ri[j]*(data[i][di]-means[j][di])**2,0)/Nk[j])
+      );
+    }
+
+    // Log-likelihood check for convergence
+    let newLL=0;
+    for(let i=0;i<n;i++){
+      let s=0;
+      for(let j=0;j<k;j++){
+        let ll=Math.log(weights[j]+eps);
+        for(let di=0;di<d;di++){
+          const v=vars[j][di];
+          ll-=0.5*(Math.log(2*Math.PI*v+eps)+(data[i][di]-means[j][di])**2/(v+eps));
+        }
+        s+=Math.exp(ll);
+      }
+      newLL+=Math.log(s+eps);
+    }
+    if(Math.abs(newLL-logL)<1e-4) break;
+    logL=newLL;
+  }
+
+  const labels=R.map(ri=>{let b=0;for(let j=1;j<k;j++) if(ri[j]>ri[b]) b=j; return b;});
+  const bic=-2*logL+(k*(2*d+1)-1)*Math.log(n);
+
+  // Entropy-based uncertainty
+  const entropies=R.map(ri=>{
+    const h=-ri.reduce((s,p)=>s+(p>eps?p*Math.log(p):0),0);
+    return h/Math.log(k);
+  });
+  const uncertainty=entropies.reduce((a,b)=>a+b,0)/n;
+
+  return {labels,R,means,vars,weights,bic,logL,uncertainty};
+}
+
+function gmmBIC(data, kRange) {
+  // Run gmm for each k, pick by minimum BIC
+  let best=null, bestBic=Infinity;
+  const bicMap={};
+  for(const k of kRange){
+    let bestRun=null, bestRunBic=Infinity;
+    for(let t=0;t<3;t++){
+      const r=gmm(data,k);
+      if(r.bic<bestRunBic){bestRunBic=r.bic;bestRun=r;}
+    }
+    bicMap[k]=+bestRun.bic.toFixed(0);
+    if(bestRun.bic<bestBic){bestBic=bestRun.bic;best=bestRun;best.k=k;}
+  }
+  return {result:best, bicMap};
+}
+
+function silScore(data,labels) {
+  const n=Math.min(data.length,200);
+  let tot=0;
+  for(let i=0;i<n;i++){
+    const ci=labels[i];
+    const same=data.filter((_,j)=>j!==i&&labels[j]===ci);
+    const a=same.length?same.reduce((s,pt)=>s+Math.sqrt(dist2(data[i],pt)),0)/same.length:0;
+    const ks=[...new Set(labels)].filter(c=>c!==ci);
+    if(!ks.length){tot+=0;continue;}
+    const b=Math.min(...ks.map(c=>{
+      const pts=data.filter((_,j)=>labels[j]===c);
+      return pts.length?pts.reduce((s,pt)=>s+Math.sqrt(dist2(data[i],pt)),0)/pts.length:Infinity;
+    }));
+    tot+=(b-a)/Math.max(a,b)||0;
+  }
+  return tot/n;
+}
+
+function pca2(data) {
+  const n=data.length,d=data[0].length;
+  const mu=Array(d).fill(0).map((_,i)=>data.reduce((s,r)=>s+r[i],0)/n);
+  const X=data.map(r=>r.map((v,i)=>v-mu[i]));
+  const pc=function(blocked) {
+    let v=Array(d).fill(0).map(()=>Math.random()-.5);
+    for(const b of blocked){const dot=v.reduce((s,vi,i)=>s+vi*b[i],0);v=v.map((vi,i)=>vi-dot*b[i]);}
+    let len=Math.sqrt(v.reduce((s,vi)=>s+vi*vi,0)); v=v.map(vi=>vi/len);
+    for(let it=0;it<60;it++){
+      let nv=Array(d).fill(0);
+      for(const row of X){const dot=row.reduce((s,vi,i)=>s+vi*v[i],0);for(let i=0;i<d;i++) nv[i]+=dot*row[i];}
+      for(const b of blocked){const dot=nv.reduce((s,vi,i)=>s+vi*b[i],0);nv=nv.map((vi,i)=>vi-dot*b[i]);}
+      len=Math.sqrt(nv.reduce((s,vi)=>s+vi*vi,0));v=nv.map(vi=>vi/len);
+    }
+    return v;
+  };
+  const p1=pc([]),p2=pc([p1]);
+  return X.map(row=>[row.reduce((s,v,i)=>s+v*p1[i],0),row.reduce((s,v,i)=>s+v*p2[i],0)]);
+}
+
+function stdize(mx) {
+  const n=mx.length,d=mx[0].length;
+  const mu=Array(d).fill(0).map((_,i)=>mx.reduce((s,r)=>s+r[i],0)/n);
+  const sd=Array(d).fill(0).map((_,i)=>Math.sqrt(mx.reduce((s,r)=>s+(r[i]-mu[i])**2,0)/n)||1);
+  return mx.map(r=>r.map((v,i)=>(v-mu[i])/sd[i]));
+}
+
+function feats(hist) {
+  const f=hist[hist.length-1];
+  const m=hist[Math.floor(hist.length/2)]||f;
+  return [
+    f.l1,f.l2,f.l3,f.l4,f.l5,f.l6,f.l7,f.l8,f.l9,
+    f.brent/200,f.vix/90,(f.jpy-130)/40,f.yld/9,f.spr/415,
+    +f.crash,+f.bab,+f.mines,+f.israel,+f.ceasefire,+f.cascade,+f.saudiPeg,+f.tether,+f.genius,+f.yanbu,
+    f.pA,f.pB,f.pC,f.pD,f.pE,
+    m.brent/200,m.vix/90,+m.crash
+  ];
+}
+
+function regimelabel(r) {
+  if (r.avgBrent > 185) return 'Dual Chokepoint — Extreme Supply Shock';
+  if (r.flashR > 0.80 && r.babR < 0.20 && r.mineR < 0.20) return 'Financial Cascade — BOJ Flash Crash';
+  if (r.cfR > 0.70 && r.flashR < 0.25) return 'Diplomatic Resolution — Scenario C Path';
+  if (r.mineR > 0.50 && r.babR < 0.40) return 'Physical Hormuz Closure — Scenario D';
+  if (r.flashR > 0.70 && r.avgBrent > 155) return 'Synchronized Crisis — Finance + Energy';
+  if (r.flashR > 0.60 && r.babR > 0.50) return 'Full Escalation — All Legs Active';
+  if (r.flashR < 0.20) return 'Prolonged Duration — No Flash Crash Path';
+  return 'Mixed Escalation — Partial Resolution';
+}
+
+// ─── Aggregate ───────────────────────────────────────────────────────────────
+function aggregate(hists) {
+  const N=hists.length, W=30;
+  const LEGS=['l1','l2','l3','l4','l5','l6','l7','l8','l9'];
+  const SCENS=['A','B','C','D','E'];
+
+  // Timeline
+  const tl=Array(W).fill(null).map((_,w)=>{
+    const row={w};
+    for(const s of SCENS){
+      const vals=hists.map(h=>{const ws=h[Math.min(w,h.length-1)];return ws['p'+s]||0;});
+      row['p'+s]=vals.reduce((a,b)=>a+b,0)/N;
+    }
+    for(const l of LEGS){
+      const vals=hists.map(h=>h[Math.min(w,h.length-1)][l]||0);
+      row[l]=vals.reduce((a,b)=>a+b,0)/N;
+    }
+    row.brent=hists.map(h=>h[Math.min(w,h.length-1)].brent).reduce((a,b)=>a+b,0)/N;
+    row.vix=hists.map(h=>h[Math.min(w,h.length-1)].vix).reduce((a,b)=>a+b,0)/N;
+    return row;
+  });
+
+  // Event freq
+  const EVTS=['BOJ_HIKE','FLASH_CRASH','BAB_MANDAB','IRGC_MINES','ISRAEL','CEASEFIRE','CASCADE','TETHER','SPR_FLOOR','GENIUS','SAUDI_PEG','YANBU'];
+  const evtF={};
+  for(const e of EVTS) evtF[e]=0;
+  for(const h of hists){
+    const seen=new Set(h.flatMap(w=>w.evts||[]));
+    for(const e of EVTS) if(seen.has(e)) evtF[e]++;
+  }
+  for(const e of EVTS) evtF[e]=evtF[e]/N;
+
+  // Flash crash timing
+  const crashWks=[];
+  for(const h of hists) for(let w=0;w<h.length;w++) if((h[w].evts||[]).includes('FLASH_CRASH')){crashWks.push(w);break;}
+  const crashDist=Array(30).fill(0);
+  for(const w of crashWks) if(w<30) crashDist[w]++;
+
+  // Final scenarios + CI bands (5th/95th percentile)
+  const fScen={}, fCI={};
+  for(const s of SCENS){
+    const vals=hists.map(h=>h[h.length-1]['p'+s]||0).sort(function(a,b){return a-b;});
+    fScen[s]=vals.reduce(function(a,b){return a+b;},0)/N;
+    fCI[s]={lo:vals[Math.floor(N*0.05)], hi:vals[Math.floor(N*0.95)]};
+  }
+
+  // Timeline with CI bands per scenario
+  for(let wi=0;wi<tl.length;wi++){
+    for(const s of SCENS){
+      const wvals=hists.map(function(h){return h[Math.min(wi,h.length-1)]['p'+s]||0;}).sort(function(a,b){return a-b;});
+      tl[wi]['p'+s+'lo']=wvals[Math.floor(N*0.05)];
+      tl[wi]['p'+s+'hi']=wvals[Math.floor(N*0.95)];
+    }
+  }
+
+  // Leg score correlation matrix (Pearson on final states)
+  const LEGS=['l1','l2','l3','l4','l5','l6','l7','l8','l9'];
+  const finalLegVals={};
+  for(const l of LEGS) finalLegVals[l]=hists.map(function(h){return h[h.length-1][l]||0;});
+  const legMeans={};
+  for(const l of LEGS) legMeans[l]=finalLegVals[l].reduce(function(a,b){return a+b;},0)/N;
+  const corrMatrix={};
+  for(const a of LEGS){
+    corrMatrix[a]={};
+    for(const b of LEGS){
+      if(a===b){corrMatrix[a][b]=1.0;continue;}
+      const ax=finalLegVals[a], bx=finalLegVals[b];
+      const ma=legMeans[a], mb=legMeans[b];
+      let num=0,da=0,db=0;
+      for(let i=0;i<N;i++){num+=(ax[i]-ma)*(bx[i]-mb);da+=(ax[i]-ma)**2;db+=(bx[i]-mb)**2;}
+      corrMatrix[a][b]=da&&db?num/Math.sqrt(da*db):0;
+    }
+  }
+
+  // GMM Regime discovery (BIC model selection)
+  const fvecs=hists.map(feats);
+  const scaled=stdize(fvecs);
+  const {result:gmmRes, bicMap}=gmmBIC(scaled,[2,3,4,5,6]);
+  const bestK=gmmRes.k;
+  const labels=gmmRes.labels;
+  const responsibilities=gmmRes.R;
+  const uncertainty=gmmRes.uncertainty;
+  const sil=silScore(scaled,labels);
+  const coords=pca2(scaled);
+
+  const regimes={};
+  for(let ci=0;ci<bestK;ci++){
+    const idxs=labels.map((l,i)=>l===ci?i:-1).filter(i=>i>=0);
+    if(!idxs.length)continue;
+    const fs=idxs.map(i=>hists[i][hists[i].length-1]);
+    const avg=f=>fs.reduce((s,h)=>s+f(h),0)/fs.length;
+    const rt=f=>fs.filter(f).length/fs.length;
+    // Soft membership: mean responsibility for this cluster
+    const meanResp=idxs.reduce((s,i)=>s+responsibilities[i][ci],0)/idxs.length;
+    const r={
+      n:fs.length, pct:fs.length/N,
+      avgBrent:avg(h=>h.brent), avgVix:avg(h=>h.vix), avgYld:avg(h=>h.yld),
+      flashR:rt(h=>h.crash), babR:rt(h=>h.bab), mineR:rt(h=>h.mines),
+      ilR:rt(h=>h.israel), cfR:rt(h=>h.ceasefire), casR:rt(h=>h.cascade), sauR:rt(h=>h.saudiPeg),
+      meanResp:+meanResp.toFixed(3),
+      gmmWeight:+gmmRes.weights[ci].toFixed(3),
+    };
+    r.label=regimelabel(r);
+    regimes[ci]=r;
+  }
+
+  // 2D covariance ellipses for PCA scatter (using diagonal vars projected to PCA)
+  // Approximate: draw circle scaled by mean sqrt(variance) per component in PCA space
+  const coords2d=pca2(scaled);
+  const ellipses=Array(bestK).fill(null).map((_,ci)=>{
+    const idxs=labels.map((l,i)=>l===ci?i:-1).filter(i=>i>=0);
+    if(!idxs.length) return null;
+    const xs=idxs.map(i=>coords2d[i][0]), ys=idxs.map(i=>coords2d[i][1]);
+    const mx=xs.reduce((a,b)=>a+b,0)/xs.length, my=ys.reduce((a,b)=>a+b,0)/ys.length;
+    const sx=Math.sqrt(xs.reduce((s,v)=>s+(v-mx)**2,0)/xs.length)||0.5;
+    const sy=Math.sqrt(ys.reduce((s,v)=>s+(v-my)**2,0)/ys.length)||0.5;
+    return {cx:+mx.toFixed(3),cy:+my.toFixed(3),rx:+(2*sx).toFixed(3),ry:+(2*sy).toFixed(3)};
+  });
+
+  const pcaCoords=coords2d.map((c,i)=>({
+    x:+c[0].toFixed(3),y:+c[1].toFixed(3),k:labels[i],
+    probs:responsibilities[i].map(p=>+p.toFixed(3))
+  }));
+
+  return {tl,evtF,fScen,fCI,crashDist,crashWks,regimes,bestK,bicMap,sil,uncertainty,ellipses,pcaCoords,N,corrMatrix};
+}
+
+// ─── SVG Chart helpers ────────────────────────────────────────────────────────
+function SvgAreaChart({data,keys,colors,height=180}) {
+  const W=560,H=height,PL=36,PR=8,PT=6,PB=22;
+  const iW=W-PL-PR, iH=H-PT-PB;
+  const n=data.length;
+  const xScale=i=>(i/(n-1))*iW+PL;
+  const yScale=v=>PT+iH*(1-v);
+
+  // stack
+  const stacked=data.map(row=>{
+    const layers=[];
+    let acc=0;
+    for(const k of keys){acc+=row[k]||0;layers.push(acc);}
+    return layers;
+  });
+
+  const area=(ki)=>{
+    const pts=data.map((_, i)=>({
+      x:xScale(i),
+      y:yScale(stacked[i][ki]),
+      y0:yScale(ki>0?stacked[i][ki-1]:0)
+    }));
+    let d=`M${pts[0].x},${pts[0].y0}`;
+    d+=pts.map(p=>`L${p.x},${p.y}`).join('');
+    d+=`L${pts[pts.length-1].x},${pts[pts.length-1].y0}`;
+    d+=pts.slice().reverse().map(p=>`L${p.x},${p.y0}`).join('');
+    d+='Z';
+    return d;
+  };
+
+  const yticks=[0,.25,.5,.75,1];
+
+  return (
+    <svg viewBox={"0 0 "+W+" "+H} style={{width:'100%',height:H}}>
+      {yticks.map(v=>(
+        <g key={v}>
+          <line x1={PL} y1={yScale(v)} x2={W-PR} y2={yScale(v)} stroke="#1e2938" strokeWidth={0.5}/>
+          <text x={PL-4} y={yScale(v)+3} fontSize={8} fill="#374151" textAnchor="end">{(v*100).toFixed(0)}%</text>
+        </g>
+      ))}
+      {keys.map((k,ki)=>(
+        <path key={k} d={area(ki)} fill={colors[ki]} opacity={0.75}/>
+      ))}
+      {[0,5,10,15,20,25,29].map(i=>(
+        <text key={i} x={xScale(i)} y={H-4} fontSize={8} fill="#374151" textAnchor="middle">W{i}</text>
+      ))}
     </svg>
-    <span>God's Eye</span>
-    <span class="badge">BoJ / Carry Trade</span>
-  </div>
-  <div class="header-right">
-    <span id="last-updated" style="font-size:var(--text-xs);color:var(--color-text-faint);font-family:var(--font-mono)"></span>
-    <button class="theme-btn" data-theme-toggle aria-label="Toggle theme">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-    </button>
-  </div>
-</header>
+  );
+}
 
-<!-- ── Sidebar ────────────────────────────────────────────────── -->
-<aside class="sidebar">
+function SvgLineChart({data,keys,colors,height=160,domainMin,domainMax}) {
+  const W=560,H=height,PL=36,PR=8,PT=6,PB=22;
+  const iW=W-PL-PR, iH=H-PT-PB;
+  const n=data.length;
+  const allVals=data.flatMap(row=>keys.map(k=>row[k]||0));
+  const vMin=domainMin!==undefined?domainMin:Math.min(...allVals);
+  const vMax=domainMax!==undefined?domainMax:Math.max(...allVals);
+  const xScale=i=>(i/(n-1))*iW+PL;
+  const yScale=v=>PT+iH*(1-(v-vMin)/(vMax-vMin||1));
 
-  <div class="sidebar-section">
-    <div class="sidebar-label">Scenario</div>
-    <div class="scenario-pills">
-      <button class="pill-btn active" data-scenario="capped1">Capped 1.00%</button>
-      <button class="pill-btn" data-scenario="refined">Refined</button>
-    </div>
-  </div>
+  const line=k=>{
+    const pts=data.map((_,i)=>xScale(i)+','+yScale(data[i][k]||0));
+    return 'M'+pts.join('L');
+  };
 
-  <div class="sidebar-section">
-    <div class="sidebar-label">FX Parameters</div>
-    <div class="control-group">
-      <label class="control-label" for="fx-target">
-        USD/JPY target <strong id="fx-target-val">152.5</strong>
-      </label>
-      <input type="range" id="fx-target" min="140" max="165" step="0.5" value="152.5">
-    </div>
-    <div class="control-group">
-      <label class="control-label" for="fx-redline">
-        Defense red-line <strong id="fx-redline-val">160.0</strong>
-      </label>
-      <input type="range" id="fx-redline" min="150" max="175" step="0.5" value="160">
-    </div>
-    <div class="control-group">
-      <label class="control-label" for="repat-mult">
-        Repatriation strength <strong id="repat-mult-val">1.00×</strong>
-      </label>
-      <input type="range" id="repat-mult" min="0.5" max="2.0" step="0.05" value="1.0">
-    </div>
-  </div>
+  return (
+    <svg viewBox={"0 0 "+W+" "+H} style={{width:'100%',height:H}}>
+      {[0,.25,.5,.75,1].map(t=>{
+        const v=vMin+(vMax-vMin)*t;
+        return <g key={t}>
+          <line x1={PL} y1={yScale(v)} x2={W-PR} y2={yScale(v)} stroke="#1e2938" strokeWidth={0.5}/>
+          <text x={PL-4} y={yScale(v)+3} fontSize={8} fill="#374151" textAnchor="end">{v.toFixed(1)}</text>
+        </g>;
+      })}
+      {keys.map((k,ki)=>(
+        <path key={k} d={line(k)} fill="none" stroke={colors[ki]} strokeWidth={1.8} opacity={0.9}/>
+      ))}
+      {[0,5,10,15,20,25,29].map(i=>(
+        <text key={i} x={xScale(i)} y={H-4} fontSize={8} fill="#374151" textAnchor="middle">W{i}</text>
+      ))}
+    </svg>
+  );
+}
 
-  <div class="sidebar-section">
-    <div class="sidebar-label">Overlays</div>
-    <div class="overlay-row">
-      <span class="overlay-label"><span class="swatch" style="background:#01696f"></span>USD/JPY</span>
-      <button class="toggle-btn on" data-overlay="usdjpy" role="switch" aria-checked="true"></button>
-    </div>
-    <div class="overlay-row">
-      <span class="overlay-label"><span class="swatch" style="background:#d19900"></span>Japan 10Y</span>
-      <button class="toggle-btn on" data-overlay="jgb10y" role="switch" aria-checked="true"></button>
-    </div>
-    <div class="overlay-row">
-      <span class="overlay-label"><span class="swatch" style="background:#006494"></span>US-JP Spread</span>
-      <button class="toggle-btn on" data-overlay="spread" role="switch" aria-checked="true"></button>
-    </div>
-    <div class="overlay-row">
-      <span class="overlay-label"><span class="swatch" style="background:#da7101"></span>BoJ Rate</span>
-      <button class="toggle-btn on" data-overlay="boj" role="switch" aria-checked="true"></button>
-    </div>
-  </div>
+function PcaScatter({coords,k,ellipses}) {
+  const W=360,H=260,PAD=20;
+  if(!coords||!coords.length) return null;
+  const xs=coords.map(p=>p.x),ys=coords.map(p=>p.y);
+  const xMin=Math.min(...xs),xMax=Math.max(...xs);
+  const yMin=Math.min(...ys),yMax=Math.max(...ys);
+  const xr=xMax-xMin||1, yr=yMax-yMin||1;
+  const px=v=>PAD+(v-xMin)/xr*(W-PAD*2);
+  const py=v=>PAD+(yMax-v)/yr*(H-PAD*2);
+  const COLS=['#3b82f6','#ef4444','#22c55e','#f97316','#a855f7','#ec4899'];
+  // Scale radii from data-space to svg-space
+  const rxScale=r=>r/xr*(W-PAD*2);
+  const ryScale=r=>r/yr*(H-PAD*2);
 
-  <hr>
-  <button class="run-btn" id="run-btn">↻ Recalculate</button>
+  return (
+    <svg viewBox={"0 0 "+W+" "+H} style={{width:'100%',height:H,background:'#070b10',borderRadius:6}}>
+      <line x1={W/2} y1={0} x2={W/2} y2={H} stroke="#1e2938" strokeWidth={0.5}/>
+      <line x1={0} y1={H/2} x2={W} y2={H/2} stroke="#1e2938" strokeWidth={0.5}/>
+      {/* GMM 2σ covariance ellipses */}
+      {ellipses&&ellipses.map(function(e,ci){
+        if(!e) return null;
+        return <ellipse key={'ell'+ci}
+          cx={px(e.cx)} cy={py(e.cy)}
+          rx={rxScale(e.rx)} ry={ryScale(e.ry)}
+          fill="none"
+          stroke={COLS[ci%COLS.length]}
+          strokeWidth={1.2}
+          strokeDasharray="4 3"
+          opacity={0.45}/>;
+      })}
+      {coords.map((pt,i)=>(
+        <circle key={i} cx={px(pt.x)} cy={py(pt.y)} r={2.2}
+          fill={COLS[pt.k%COLS.length]} opacity={0.55}/>
+      ))}
+      {Array.from({length:k},function(_,ci){
+        const mem=coords.filter(function(p){return p.k===ci;});
+        if(!mem.length) return null;
+        const cx=mem.reduce(function(s,p){return s+px(p.x);},0)/mem.length;
+        const cy=mem.reduce(function(s,p){return s+py(p.y);},0)/mem.length;
+        return <text key={ci} x={cx} y={cy} fontSize={10} fill={COLS[ci%COLS.length]}
+          textAnchor="middle" fontWeight="700" opacity={0.9}>{ci+1}</text>;
+      })}
+      <text x={4} y={H-4} fontSize={8} fill="#374151">PC1 →</text>
+      <text x={4} y={12} fontSize={8} fill="#374151">↑ PC2</text>
+      <text x={W-4} y={H-4} fontSize={7} fill="#1e2938" textAnchor="end">GMM·BIC</text>
+    </svg>
+  );
+}
 
-</aside>
+// ─── L(t) State Vector Panel ─────────────────────────────────────────────────
+// Current confirmed framework state as of Jun 8, 2026
+const STATE_VECTOR = {
+  legs: [
+    {id:'l1', label:'War/Energy Chokepoints', val:0.99, change:0, components:['PGSA toll active','14.5mb/d offline','SPR degradation'],conf:'confirmed'},
+    {id:'l2', label:'GCC/Petrodollar Strain', val:0.89, change:+2, components:['TIC official –$37.9B','USD/JPY 159','Japan still buying Feb'],conf:'confirmed'},
+    {id:'l3', label:'Private Credit/NBFI',    val:0.67, change:0, components:['Apollo 45¢','Barings 44.3%','Dimon Apr 6'],conf:'confirmed'},
+    {id:'l4', label:'Settlement Rails',       val:0.32, change:0, components:['GENIUS Act pending 30%','Tether $134B','SWIFT intact'],conf:'inferred'},
+    {id:'l5', label:'Food/Fertilizer',        val:0.83, change:0, components:['QAFCO FM 14%','Kuwait FM','Bahrain FM'],conf:'confirmed'},
+    {id:'l6', label:'Munitions/MIC',          val:0.45, change:0, components:['$200B supplemental','NATO stretch','Queue backlogs'],conf:'confirmed'},
+    {id:'l7', label:'Semiconductor/Taiwan',   val:0.42, change:0, components:['TSMC implied','CHIPS Act','US-China BIS'],conf:'inferred'},
+    {id:'l8', label:'Maritime/Insurance',     val:0.89, change:+4, components:['Houthi blockade Jun 8','Maersk reversed','MARAD 2026-006'],conf:'confirmed'},
+    {id:'l9', label:'AI/Labor',               val:0.38, change:0, components:['Displacement risk','LMM adoption','Strikes Q2'],conf:'inferred'},
+  ],
+  cross: {id:'l_cross', label:'JPY Carry Cross-Cut', val:1.00, components:['BOJ hike Jun 16-17','288bp differential','USD/JPY 159'],conf:'confirmed'},
+  constraintBand: 'CB-D/CB-E',
+  composite: 0.91,
+  asOf: 'Jun 8, 2026',
+  // Historical analogues for comparison radar
+  analogues: [
+    {id:'2024_boj', label:'2024 Dress Rehearsal', vals:[0.60,0.71,0.98,0.32,0.65,0.48,0.45,0.45,0.38,0.89], col:'#f97316'},
+    {id:'2022_ukr', label:'2022 Ukraine Shock',   vals:[0.85,0.69,0.84,0.35,0.82,0.55,0.45,0.57,0.28,0.37], col:'#3b82f6'},
+  ]
+};
 
-<!-- ── Main ───────────────────────────────────────────────────── -->
-<main class="main">
+function RadarChart({legs, cross, analogues}) {
+  const W=300,H=300,CX=W/2,CY=H/2,R=110;
+  const allLegs=[...legs,cross];
+  const n=allLegs.length;
+  const angle=i=>(2*Math.PI*i/n - Math.PI/2);
+  const px=(v,i)=>CX+R*v*Math.cos(angle(i));
+  const py=(v,i)=>CY+R*v*Math.sin(angle(i));
 
-  <!-- KPI row -->
-  <div class="kpi-row">
-    <div class="kpi-card">
-      <div class="kpi-label">USD/JPY</div>
-      <div class="kpi-value" id="kpi-usdjpy">—</div>
-      <div class="kpi-delta neutral" id="kpi-usdjpy-d">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Japan 10Y</div>
-      <div class="kpi-value" id="kpi-jgb">—</div>
-      <div class="kpi-delta neutral" id="kpi-jgb-d">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">US 10Y</div>
-      <div class="kpi-value" id="kpi-us10y">—</div>
-      <div class="kpi-delta neutral" id="kpi-us10y-d">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">US-JP Spread</div>
-      <div class="kpi-value" id="kpi-spread">—</div>
-      <div class="kpi-delta neutral" id="kpi-spread-d">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">BoJ Rate</div>
-      <div class="kpi-value" id="kpi-boj">—</div>
-      <div class="kpi-delta neutral" id="kpi-boj-d">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Hike Probability</div>
-      <div class="kpi-value" id="kpi-hike-p">—</div>
-      <div class="kpi-delta neutral" id="kpi-hike-p-d">next meeting</div>
-    </div>
-  </div>
+  // Grid rings
+  const rings=[0.25,0.5,0.75,1.0];
+  const ringPaths=rings.map(r=>{
+    const pts=Array(n).fill(0).map((_,i)=>px(r,i)+','+py(r,i));
+    return 'M'+pts.join('L')+'Z';
+  });
 
-  <!-- Charts -->
-  <div class="chart-grid">
+  // Axes
+  const axisLines=Array(n).fill(0).map((_,i)=>({
+    x1:CX,y1:CY,x2:px(1,i),y2:py(1,i)
+  }));
 
-    <div class="chart-card wide">
-      <div class="chart-title">USD/JPY vs Japan 10Y Yield — Monthly Median Paths</div>
-      <div class="chart-sub">Dual-axis overlay · Hormuz closure scenario · Shaded region = active FX defense band</div>
-      <div class="chart-wrap"><canvas id="chart-overlay"></canvas></div>
-    </div>
+  // Current state polygon
+  const currentPts=allLegs.map((l,i)=>px(l.val,i)+','+py(l.val,i));
+  const currentPath='M'+currentPts.join('L')+'Z';
 
-    <div class="chart-card">
-      <div class="chart-title">US–Japan 10Y Spread (bp)</div>
-      <div class="chart-sub">Carry incentive — wide = dollar-supportive</div>
-      <div class="chart-wrap"><canvas id="chart-spread"></canvas></div>
-    </div>
+  // Analogue polygons
+  const analoguePaths=(analogues||[]).map(function(a){
+    const pts=a.vals.map((v,i)=>px(v,i)+','+py(v,i));
+    return {path:'M'+pts.join('L')+'Z', col:a.col, label:a.label};
+  });
 
-    <div class="chart-card">
-      <div class="chart-title">BoJ Rate Hike Probability</div>
-      <div class="chart-sub">Estimated from JGB yield path &amp; FX pressure index</div>
-      <div class="gauge-wrap">
-        <div class="gauge-arc">
-          <svg viewBox="0 0 180 90" width="180" height="90">
-            <path d="M10 90 A80 80 0 0 1 170 90" fill="none" stroke="var(--color-surface-dynamic)" stroke-width="14" stroke-linecap="round"/>
-            <path id="gauge-arc-fill" d="M10 90 A80 80 0 0 1 170 90" fill="none" stroke="var(--color-primary)" stroke-width="14" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="251.2"/>
-          </svg>
-          <span class="gauge-pct" id="gauge-pct">0%</span>
+  // Color by value
+  function legColor(v) {
+    if(v>=0.85) return '#ef4444';
+    if(v>=0.65) return '#f97316';
+    if(v>=0.45) return '#eab308';
+    return '#60a5fa';
+  }
+
+  return (
+    <svg viewBox={"0 0 "+W+" "+H} style={{width:'100%',maxWidth:280}}>
+      {/* Background rings */}
+      {ringPaths.map(function(d,ri){
+        return <path key={ri} d={d} fill="none" stroke="#1e2938" strokeWidth={ri===3?0.8:0.4}/>;
+      })}
+      {rings.map(function(r,ri){
+        return <text key={ri} x={CX+2} y={CY-R*r+3} fontSize={7} fill="#374151">{Math.round(r*100)}%</text>;
+      })}
+      {/* Axis lines */}
+      {axisLines.map(function(ax,i){
+        return <line key={i} x1={ax.x1} y1={ax.y1} x2={ax.x2} y2={ax.y2} stroke="#1e2938" strokeWidth={0.6}/>;
+      })}
+      {/* Analogue polygons (behind) */}
+      {analoguePaths.map(function(a,ai){
+        return <path key={ai} d={a.path} fill={a.col} fillOpacity={0.06} stroke={a.col} strokeWidth={1} strokeDasharray="3 2" opacity={0.5}/>;
+      })}
+      {/* Current state polygon */}
+      <path d={currentPath} fill="rgba(239,68,68,0.15)" stroke="#ef4444" strokeWidth={2}/>
+      {/* Dots at vertices */}
+      {allLegs.map(function(l,i){
+        return <circle key={i} cx={px(l.val,i)} cy={py(l.val,i)} r={4}
+          fill={legColor(l.val)} stroke="#0a0e14" strokeWidth={1}/>;
+      })}
+      {/* Axis labels */}
+      {allLegs.map(function(l,i){
+        const ax=angle(i);
+        const lx=CX+(R+18)*Math.cos(ax);
+        const ly=CY+(R+18)*Math.sin(ax);
+        const short=l.id==='l_cross'?'JPY':l.id.toUpperCase();
+        return <text key={i} x={lx} y={ly+3} fontSize={8} fill="#9ca3af"
+          textAnchor="middle">{short}</text>;
+      })}
+    </svg>
+  );
+}
+
+function StateVectorPanel() {
+  const {legs, cross, constraintBand, composite, asOf, analogues} = STATE_VECTOR;
+
+  function confBadge(c) {
+    const styles={
+      confirmed:{background:'rgba(34,197,94,.12)',color:'#4ade80',border:'1px solid rgba(34,197,94,.25)'},
+      inferred: {background:'rgba(234,179,8,.12)', color:'#fbbf24',border:'1px solid rgba(234,179,8,.25)'},
+      speculative:{background:'rgba(239,68,68,.12)',color:'#f87171',border:'1px solid rgba(239,68,68,.25)'},
+    };
+    const s=styles[c]||styles.inferred;
+    return <span style={{...s,fontSize:7,padding:'1px 4px',borderRadius:2,marginLeft:4}}>{c.toUpperCase()}</span>;
+  }
+
+  return (
+    <div className="card">
+      <div className="ctitle">
+        <span className="dot"/>
+        L(t) ∈ ℝ¹⁰ — Formal State Vector · {asOf}
+        <span style={{marginLeft:'auto',display:'flex',gap:6,alignItems:'center'}}>
+          <span style={{fontSize:10,color:'#ef4444',fontWeight:700}}>COMPOSITE {Math.round(composite*100)}%</span>
+          <span style={{fontSize:9,background:'rgba(239,68,68,.2)',color:'#ef4444',border:'1px solid rgba(239,68,68,.4)',padding:'1px 6px',borderRadius:2}}>{constraintBand}</span>
+        </span>
+      </div>
+
+      <div style={{display:'flex',gap:16,alignItems:'flex-start'}}>
+
+        {/* Radar chart */}
+        <div style={{flexShrink:0,width:240}}>
+          <RadarChart legs={legs} cross={cross} analogues={analogues}/>
+          <div style={{marginTop:6,display:'flex',gap:8,flexWrap:'wrap'}}>
+            <div style={{display:'flex',alignItems:'center',gap:3}}>
+              <div style={{width:16,height:2,background:'#ef4444'}}/><span style={{fontSize:8,color:'#6b7280'}}>Current (Jun 8)</span>
+            </div>
+            {analogues.map(function(a){
+              return <div key={a.id} style={{display:'flex',alignItems:'center',gap:3}}>
+                <div style={{width:16,height:1,background:a.col,opacity:.6}}/><span style={{fontSize:8,color:'#6b7280'}}>{a.label}</span>
+              </div>;
+            })}
+          </div>
         </div>
-        <div class="gauge-sub" id="gauge-label">Loading scenario data…</div>
+
+        {/* Z-score bars */}
+        <div style={{flex:1,minWidth:0}}>
+          {[...legs,cross].map(function(l){
+            const v=l.val;
+            const col=v>=0.85?'#ef4444':v>=0.65?'#f97316':v>=0.45?'#eab308':'#60a5fa';
+            const chgSign=l.change>0?'+':l.change<0?'':' ';
+            return (
+              <div key={l.id} style={{marginBottom:6}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:2}}>
+                  <span style={{fontSize:9,color:'#9ca3af',width:170,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{l.label}{confBadge(l.conf)}</span>
+                  <div style={{display:'flex',gap:4,alignItems:'center'}}>
+                    {l.change!==0&&<span style={{fontSize:8,color:l.change>0?'#4ade80':'#f87171'}}>{chgSign}{l.change}pp</span>}
+                    <span style={{fontSize:10,fontWeight:700,color:col,width:36,textAlign:'right'}}>{Math.round(v*100)}%</span>
+                  </div>
+                </div>
+                <div style={{height:6,background:'rgba(255,255,255,.06)',borderRadius:3,overflow:'hidden'}}>
+                  <div style={{height:'100%',width:(v*100)+'%',background:col,borderRadius:3,opacity:.8}}/>
+                </div>
+                <div style={{display:'flex',gap:4,marginTop:2,flexWrap:'wrap'}}>
+                  {(l.components||[]).map(function(c,ci){
+                    return <span key={ci} style={{fontSize:7,color:'#374151',background:'rgba(255,255,255,.04)',padding:'0 3px',borderRadius:2}}>{c}</span>;
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Constraint band progression */}
+      <div style={{marginTop:10,padding:'8px 10px',background:'rgba(239,68,68,.05)',border:'1px solid rgba(239,68,68,.15)',borderRadius:4}}>
+        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:4}}>
+          {['CB-A','CB-B','CB-C','CB-D','CB-E'].map(function(cb){
+            const active=constraintBand.includes(cb);
+            const threshold=constraintBand.includes('threshold')&&cb==='CB-E';
+            return <span key={cb} style={{
+              fontSize:8,padding:'2px 6px',borderRadius:2,
+              background:active||threshold?'rgba(239,68,68,.2)':'transparent',
+              color:active||threshold?'#f87171':'#374151',
+              border:'1px solid '+(active||threshold?'rgba(239,68,68,.4)':'#1e2938'),
+              fontWeight:active?700:400
+            }}>{cb}{threshold?' ⚠':''}  </span>;
+          })}
+        </div>
+        <div style={{fontSize:9,color:'#6b7280'}}>
+          L(t) = σ(Σ w_ij · z_ij(t)) · Components: 15/21 live · Gaps require commercial feeds · State vector updated Jun 8, 2026
+        </div>
       </div>
     </div>
+  );
+}
 
-  </div>
-
-  <!-- WoW table -->
-  <div class="table-card">
-    <div class="table-header">
-      <div class="table-title">Monthly Scenario Tracker</div>
-      <div class="table-sub">WoW Δ shown in basis points for yields · USD/JPY in pips · Trigger rows highlighted</div>
+// ─── Actor Registry Component ────────────────────────────────────────────────
+function ActorRegistry() {
+  const [filter, setFilter] = useState('all');
+  const tiers = {1:'KINETIC',2:'GCC',3:'MAJOR POWERS',4:'FINANCIAL/MECH'};
+  const tierColors = {1:'t1',2:'t2',3:'t3',4:'t4'};
+  const postureColors = {esc:'pos-esc',sup:'pos-sup',neu:'pos-neu',mech:'pos-mech'};
+  const filtered = filter==='all' ? ACTORS : ACTORS.filter(function(a){return a.tier===+filter;});
+  return (
+    <div className="card">
+      <div className="ctitle">
+        <span className="dot dot-o"/>
+        Actor Registry — {ACTORS.length} Nodes · 4 Tiers · Computable Decision Models
+        <div style={{marginLeft:'auto',display:'flex',gap:4}}>
+          {['all','1','2','3','4'].map(function(f){
+            return <button key={f} onClick={function(){setFilter(f)}} style={{
+              padding:'2px 8px',border:'1px solid',borderRadius:3,fontSize:9,cursor:'pointer',
+              fontFamily:'inherit',fontWeight:700,letterSpacing:'.06em',
+              background:filter===f?'rgba(239,68,68,.2)':'transparent',
+              color:filter===f?'#ef4444':'#4b5563',
+              borderColor:filter===f?'rgba(239,68,68,.4)':'#1e2938'
+            }}>
+              {f==='all'?'ALL':tiers[+f]||f}
+            </button>;
+          })}
+        </div>
+      </div>
+      <div className="actor-grid">
+        {filtered.map(function(a){
+          return (
+            <div key={a.name} className={'acard acard-tier'+a.tier}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div className="acard-name">{a.flag} {a.name}</div>
+                <span className={'tier-badge '+tierColors[a.tier]}>T{a.tier}</span>
+              </div>
+              <span className={'posture '+postureColors[a.posture]}>{a.postureLabel}</span>
+              <div className="acard-role">{a.role}</div>
+              <div className="acard-signal"><b>WATCH:</b> {a.signal}</div>
+              <div style={{fontSize:9,color:'#374151',marginTop:4,fontStyle:'italic'}}>{a.constraint}</div>
+            </div>
+          );
+        })}
+      </div>
     </div>
-    <div style="overflow-x:auto">
-      <table class="data-table" id="main-table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>USD/JPY</th>
-            <th>Δ pip</th>
-            <th>JP 10Y</th>
-            <th>Δ bp</th>
-            <th>US 10Y</th>
-            <th>Δ bp</th>
-            <th>Spread</th>
-            <th>BoJ Rate</th>
-            <th>Hike P</th>
-          </tr>
-        </thead>
-        <tbody id="table-body"><tr><td colspan="10" style="text-align:center;color:var(--color-text-faint);padding:var(--space-8)">Loading data…</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-</main>
-</div><!-- .app -->
-
-<!-- Status bar -->
-<div class="status-bar">
-  <span><span class="status-dot loading" id="status-dot"></span><span id="status-text">Loading scenario CSV…</span></span>
-  <span style="font-family:var(--font-mono)">God's Eye · BoJ / Carry Trade Model · v1.0</span>
-</div>
-
-<script>
-// ── Theme toggle ───────────────────────────────────────────────────────
-(function(){
-  const t=document.querySelector('[data-theme-toggle]'),r=document.documentElement;
-  let d=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
-  r.setAttribute('data-theme',d);
-  if(t)t.addEventListener('click',()=>{
-    d=d==='dark'?'light':'dark';
-    r.setAttribute('data-theme',d);
-    t.innerHTML=d==='dark'
-      ?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
-      :'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
-  });
-})();
-
-// ── State ──────────────────────────────────────────────────────────────
-let state = {
-  scenario: 'capped1',
-  fxTarget: 152.5,
-  fxRedline: 160.0,
-  repatMult: 1.0,
-  overlays: { usdjpy: true, jgb10y: true, spread: true, boj: true },
-  data: { capped1: null, refined: null }
-};
-
-// ── CSV parser ─────────────────────────────────────────────────────────
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.trim());
-  return lines.slice(1).map(line => {
-    const vals = line.split(',');
-    const obj = {};
-    headers.forEach((h, i) => {
-      const v = vals[i] ? vals[i].trim() : '';
-      obj[h] = isNaN(v) || v === '' ? v : parseFloat(v);
-    });
-    return obj;
-  });
+  );
 }
 
-// ── Data loading ───────────────────────────────────────────────────────
-async function loadCSV(url) {
-  const r = await fetch(url);
-  const t = await r.text();
-  return parseCSV(t);
-}
+// ─── Correlation Heatmap Component ───────────────────────────────────────────
+function CorrelationHeatmap({matrix}) {
+  if(!matrix) return null;
+  const legs=['l1','l2','l3','l4','l5','l6','l7','l8','l9'];
+  const lshort={l1:'War',l2:'Petro',l3:'Credit',l4:'Rails',l5:'Food',l6:'Muni',l7:'Semi',l8:'Mari',l9:'AI'};
+  const cellSize=44;
+  const W=legs.length*cellSize+80, H=legs.length*cellSize+60;
 
-async function loadAll() {
-  setStatus('loading', 'Loading scenario data…');
-  try {
-    const base = location.pathname.includes('/docs/') ? '../data/' : './data/';
-    const [capped1, refined] = await Promise.all([
-      loadCSV(base + 'japan_hormuz_mc_capped1.csv'),
-      loadCSV(base + 'japan_hormuz_mc_refined.csv')
-    ]);
-    state.data.capped1 = capped1;
-    state.data.refined = refined;
-    document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleDateString();
-    setStatus('ok', 'Data loaded — ' + capped1.length + ' months');
-    render();
-  } catch(e) {
-    setStatus('error', 'Could not load CSV — check data/ path (' + e.message + ')');
-    renderFallback();
-  }
-}
-
-// ── Status helper ──────────────────────────────────────────────────────
-function setStatus(type, msg) {
-  const dot = document.getElementById('status-dot');
-  const txt = document.getElementById('status-text');
-  dot.className = 'status-dot' + (type === 'loading' ? ' loading' : '');
-  if(type === 'ok') dot.style.background = 'var(--color-success)';
-  if(type === 'error') dot.style.background = 'var(--color-error)';
-  if(type === 'loading') dot.style.background = '';
-  txt.textContent = msg;
-}
-
-// ── Column name helpers ────────────────────────────────────────────────
-function col(row, candidates) {
-  for(const c of candidates) if(row[c] !== undefined) return row[c];
-  return null;
-}
-const C = {
-  month:  r => col(r, ['month','Month','month_num','t']),
-  usdjpy: r => col(r, ['usdjpy_med','usdjpy','usd_jpy','USD_JPY','usdjpy_median']),
-  jgb:    r => col(r, ['jgb10y_med','jgb10y','jgb_10y','JGB_10Y','japan_10y','jp_10y']),
-  us10y:  r => col(r, ['us10y_med','us10y','US_10Y','us_10y']),
-  boj:    r => col(r, ['boj_rate_med','boj_rate','BoJ_rate','boj','boj_med']),
-  hikep:  r => col(r, ['hike_prob','hike_p','hike_probability','p_hike'])
-};
-
-// ── Apply slider adjustments ───────────────────────────────────────────
-function applyAdjustments(rows) {
-  const fxShift = (state.fxTarget - 152.5) * 0.4;
-  const rm = state.repatMult;
-  return rows.map((r, i) => {
-    const adj = { ...r };
-    const usdjpy = C.usdjpy(r);
-    const jgb = C.jgb(r);
-    const boj = C.boj(r);
-    if(usdjpy !== null) {
-      let v = usdjpy + fxShift;
-      if(v > state.fxRedline) v = state.fxRedline + (v - state.fxRedline) * (1 / rm);
-      adj._usdjpy = v;
-    } else adj._usdjpy = null;
-    adj._jgb = jgb;
-    adj._us10y = C.us10y(r);
-    adj._boj = boj;
-    adj._hikep = C.hikep(r);
-    adj._spread = (adj._us10y !== null && adj._jgb !== null) ? (adj._us10y - adj._jgb) * 100 : null;
-    return adj;
-  });
-}
-
-// ── Charts ─────────────────────────────────────────────────────────────
-let overlayChart = null;
-let spreadChart  = null;
-
-function cssVar(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
-
-function renderOverlayChart(rows) {
-  const labels = rows.map((r, i) => {
-    const m = C.month(r);
-    if(m !== null) {
-      const d = new Date(2025, Math.round(m) - 1, 1);
-      return d.toLocaleString('default', { month: 'short', year: '2-digit' });
-    }
-    return 'M' + (i + 1);
-  });
-
-  const datasets = [];
-
-  if(state.overlays.usdjpy && rows.some(r => r._usdjpy !== null)) {
-    datasets.push({
-      label: 'USD/JPY',
-      data: rows.map(r => r._usdjpy),
-      yAxisID: 'yFX',
-      borderColor: cssVar('--color-primary'),
-      backgroundColor: 'transparent',
-      borderWidth: 2,
-      pointRadius: 3,
-      tension: 0.3,
-      order: 1
-    });
-  }
-  if(state.overlays.jgb10y && rows.some(r => r._jgb !== null)) {
-    datasets.push({
-      label: 'Japan 10Y (%)',
-      data: rows.map(r => r._jgb),
-      yAxisID: 'yYield',
-      borderColor: cssVar('--color-gold'),
-      backgroundColor: 'transparent',
-      borderWidth: 2,
-      pointRadius: 3,
-      borderDash: [4,3],
-      tension: 0.3,
-      order: 2
-    });
-  }
-  if(state.overlays.boj && rows.some(r => r._boj !== null)) {
-    datasets.push({
-      label: 'BoJ Rate (%)',
-      data: rows.map(r => r._boj),
-      yAxisID: 'yYield',
-      borderColor: cssVar('--color-orange'),
-      backgroundColor: 'transparent',
-      borderWidth: 2,
-      pointRadius: 2,
-      borderDash: [2,4],
-      tension: 0.1,
-      order: 3
-    });
-  }
-
-  const ctx = document.getElementById('chart-overlay').getContext('2d');
-  if(overlayChart) overlayChart.destroy();
-
-  overlayChart = new Chart(ctx, {
-    type: 'line',
-    data: { labels, datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: {
-          labels: {
-            color: cssVar('--color-text-muted'),
-            font: { family: cssVar('--font-body'), size: 11 },
-            boxWidth: 12, boxHeight: 2
-          }
-        },
-        tooltip: {
-          backgroundColor: cssVar('--color-surface-2'),
-          borderColor: cssVar('--color-border'),
-          borderWidth: 1,
-          titleColor: cssVar('--color-text'),
-          bodyColor: cssVar('--color-text-muted'),
-          callbacks: {
-            label: ctx => {
-              const v = ctx.parsed.y;
-              if(v === null) return '';
-              if(ctx.dataset.yAxisID === 'yFX') return ` ${ctx.dataset.label}: ${v.toFixed(2)}`;
-              return ` ${ctx.dataset.label}: ${v.toFixed(2)}%`;
-            }
-          }
-        },
-        annotation: state.fxRedline ? {} : {}
-      },
-      scales: {
-        x: {
-          ticks: { color: cssVar('--color-text-muted'), font: { size: 10 } },
-          grid: { color: cssVar('--color-divider') }
-        },
-        yFX: {
-          position: 'left',
-          title: { display: true, text: 'USD/JPY', color: cssVar('--color-primary'), font: { size: 10 } },
-          ticks: { color: cssVar('--color-primary'), font: { size: 10 } },
-          grid: { color: cssVar('--color-divider') }
-        },
-        yYield: {
-          position: 'right',
-          title: { display: true, text: 'Yield (%)', color: cssVar('--color-gold'), font: { size: 10 } },
-          ticks: { color: cssVar('--color-gold'), font: { size: 10 } },
-          grid: { drawOnChartArea: false }
-        }
-      }
-    }
-  });
-}
-
-function renderSpreadChart(rows) {
-  const labels = rows.map((r, i) => {
-    const m = C.month(r);
-    if(m !== null) {
-      const d = new Date(2025, Math.round(m) - 1, 1);
-      return d.toLocaleString('default', { month: 'short', year: '2-digit' });
-    }
-    return 'M' + (i + 1);
-  });
-  const spreads = rows.map(r => r._spread);
-  const ctx = document.getElementById('chart-spread').getContext('2d');
-  if(spreadChart) spreadChart.destroy();
-  spreadChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'US-JP Spread (bp)',
-        data: spreads,
-        borderColor: cssVar('--color-blue'),
-        backgroundColor: 'rgba(0,100,148,0.07)',
-        fill: true,
-        borderWidth: 2,
-        pointRadius: 2,
-        tension: 0.3
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: cssVar('--color-surface-2'),
-          borderColor: cssVar('--color-border'),
-          borderWidth: 1,
-          titleColor: cssVar('--color-text'),
-          bodyColor: cssVar('--color-text-muted'),
-          callbacks: { label: ctx => ` Spread: ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) : '—'} bp` }
-        }
-      },
-      scales: {
-        x: { ticks: { color: cssVar('--color-text-muted'), font: { size: 10 } }, grid: { color: cssVar('--color-divider') } },
-        y: {
-          ticks: { color: cssVar('--color-text-muted'), font: { size: 10 }, callback: v => v + ' bp' },
-          grid: { color: cssVar('--color-divider') }
-        }
-      }
-    }
-  });
-}
-
-// ── Gauge ──────────────────────────────────────────────────────────────
-function renderGauge(pct, label) {
-  const fill = document.getElementById('gauge-arc-fill');
-  const txt  = document.getElementById('gauge-pct');
-  const lbl  = document.getElementById('gauge-label');
-  const total = 251.2;
-  const offset = total - (total * Math.min(pct, 1));
-  fill.style.strokeDashoffset = offset;
-  const p = Math.round(pct * 100);
-  const col = p >= 75 ? 'var(--color-warning)' : p >= 50 ? 'var(--color-gold)' : 'var(--color-primary)';
-  fill.style.stroke = col;
-  txt.textContent = p + '%';
-  lbl.textContent = label || (p >= 75 ? 'High — hike likely at next meeting' : p >= 50 ? 'Moderate — market on watch' : 'Low — further data needed');
-  document.getElementById('kpi-hike-p').textContent = p + '%';
-}
-
-// ── KPI cards ──────────────────────────────────────────────────────────
-function renderKPIs(rows) {
-  if(!rows.length) return;
-  const last = rows[rows.length - 1];
-  const prev = rows.length > 1 ? rows[rows.length - 2] : null;
-
-  function setKpi(id, val, delta, unit, deltaUnit, isYield) {
-    document.getElementById(id).textContent = val !== null ? val.toFixed(isYield ? 2 : 2) + unit : '—';
-    const d = document.getElementById(id + '-d');
-    if(delta !== null && !isNaN(delta)) {
-      const sign = delta > 0 ? '+' : '';
-      d.textContent = sign + delta.toFixed(isYield ? 1 : 1) + deltaUnit;
-      d.className = 'kpi-delta ' + (delta > 0 ? 'up' : delta < 0 ? 'down' : 'neutral');
+  function corrColor(v) {
+    if(v>=0){
+      const r=Math.round(59+v*(239-59)), g=Math.round(130+v*(68-130)), b=Math.round(246+v*(68-246));
+      return 'rgb('+r+','+g+','+b+')';
     } else {
-      d.textContent = 'vs prior month';
-      d.className = 'kpi-delta neutral';
+      const t=-v;
+      const r=Math.round(59+t*(34-59)), g=Math.round(130+t*(197-130)), b=Math.round(246+t*(94-246));
+      return 'rgb('+r+','+g+','+b+')';
     }
   }
 
-  setKpi('kpi-usdjpy', last._usdjpy, prev ? last._usdjpy - prev._usdjpy : null, '', ' pip');
-  setKpi('kpi-jgb', last._jgb, prev ? (last._jgb - prev._jgb) * 100 : null, '%', ' bp', true);
-  setKpi('kpi-us10y', last._us10y, prev ? (last._us10y - prev._us10y) * 100 : null, '%', ' bp', true);
-  const sp = last._spread; const psp = prev ? prev._spread : null;
-  document.getElementById('kpi-spread').textContent = sp !== null ? sp.toFixed(1) + ' bp' : '—';
-  const spd = document.getElementById('kpi-spread-d');
-  const sdelta = (psp !== null && sp !== null) ? sp - psp : null;
-  spd.textContent = sdelta !== null ? (sdelta > 0 ? '+' : '') + sdelta.toFixed(1) + ' bp' : 'vs prior';
-  spd.className = 'kpi-delta ' + (sdelta > 0 ? 'up' : sdelta < 0 ? 'down' : 'neutral');
-  setKpi('kpi-boj', last._boj, prev ? (last._boj - prev._boj) * 100 : null, '%', ' bp', true);
+  return (
+    <div className="card">
+      <div className="ctitle"><span className="dot dot-p"/>Leg Score Correlation Matrix <span className="ci-badge">Pearson r · final simulation states · n={Object.keys(matrix).length>0?'N runs':'–'}</span></div>
+      <div style={{overflowX:'auto'}}>
+        <svg viewBox={'0 0 '+W+' '+H} style={{width:'100%',minWidth:300,height:'auto'}}>
+          {/* Row labels */}
+          {legs.map(function(l,i){
+            return <text key={l} x={72} y={60+i*cellSize+cellSize/2+3} fontSize={9} fill="#6b7280" textAnchor="end">{lshort[l]}</text>;
+          })}
+          {/* Col labels */}
+          {legs.map(function(l,i){
+            return <text key={l} x={80+i*cellSize+cellSize/2} y={52} fontSize={9} fill="#6b7280" textAnchor="middle">{lshort[l]}</text>;
+          })}
+          {/* Cells */}
+          {legs.map(function(ra,ri){
+            return legs.map(function(ca,ci){
+              const v=matrix[ra]&&matrix[ra][ca]!==undefined?matrix[ra][ca]:0;
+              const col=corrColor(v);
+              const textCol=Math.abs(v)>0.5?'#fff':'#9ca3af';
+              return (
+                <g key={ra+ca}>
+                  <rect x={80+ci*cellSize} y={60+ri*cellSize} width={cellSize-2} height={cellSize-2}
+                    fill={col} rx={2} opacity={0.85}/>
+                  <text x={80+ci*cellSize+cellSize/2-1} y={60+ri*cellSize+cellSize/2+3}
+                    fontSize={8} fill={textCol} textAnchor="middle" fontWeight="600">
+                    {v.toFixed(2)}
+                  </text>
+                </g>
+              );
+            });
+          })}
+          {/* Legend */}
+          <text x={80} y={H-4} fontSize={8} fill="#374151">← negative (−1)</text>
+          <text x={W-4} y={H-4} fontSize={8} fill="#374151" textAnchor="end">positive (+1) →</text>
+          <text x={W/2} y={H-4} fontSize={8} fill="#374151" textAnchor="middle">blue = positive · red = negative correlation</text>
+        </svg>
+      </div>
+      <div style={{fontSize:9,color:'#374151',marginTop:6}}>
+        High l1/l8 covariance expected (Hormuz drives both). High l2/cross covariance (dollar + JPY carry linked).
+        Low off-diagonal for l4 (settlement rails) suggests XRP thesis is structurally independent — or uncorrelated noise.
+        Strong l3/l2 coupling confirms credit + petrodollar move together in the flash crash pathway.
+      </div>
+    </div>
+  );
 }
 
-// ── Table ──────────────────────────────────────────────────────────────
-function renderTable(rows) {
-  const tbody = document.getElementById('table-body');
-  let html = '';
-  rows.forEach((r, i) => {
-    const prev = i > 0 ? rows[i - 1] : null;
-    const m = C.month(r);
-    const d = m !== null ? new Date(2025, Math.round(m) - 1, 1).toLocaleString('default', { month: 'short', year: '2-digit' }) : 'M' + (i + 1);
-    const usdjpy = r._usdjpy !== null ? r._usdjpy.toFixed(2) : '—';
-    const jgb = r._jgb !== null ? r._jgb.toFixed(3) + '%' : '—';
-    const us10y = r._us10y !== null ? r._us10y.toFixed(3) + '%' : '—';
-    const spread = r._spread !== null ? r._spread.toFixed(1) + 'bp' : '—';
-    const boj = r._boj !== null ? r._boj.toFixed(2) + '%' : '—';
-    const hikep = r._hikep !== null ? (r._hikep * 100).toFixed(0) + '%' : '—';
+// ─── Constants ────────────────────────────────────────────────────────────────
+const SCEN_COLORS=['#ef4444','#f97316','#22c55e','#a855f7','#ec4899'];
+const SCEN_LABELS={A:'Strike / Zero Restraint',B:'Back Down / Duration',C:'Back Channel Deal',D:'IRGC Mines',E:'Dual Chokepoint'};
+const LEG_COLS=['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#f43f5e'];
+const LEG_LBL={l1:'War/Energy',l2:'Petrodollar',l3:'Priv Credit',l4:'Settlement',l5:'Food/Fert',l6:'Munitions',l7:'Semicon',l8:'Maritime',l9:'AI/Labor'};
+const CLUSTER_COLS=['#3b82f6','#ef4444','#22c55e','#f97316','#a855f7','#ec4899'];
+const EVT_LBL={BOJ_HIKE:'BOJ Hike 1.0%',FLASH_CRASH:'Flash Crash',BAB_MANDAB:'Bab al-Mandab',IRGC_MINES:'IRGC Mine Deploy',ISRAEL:'Israel Unilateral',CEASEFIRE:'Ceasefire Signal',CASCADE:'Credit Cascade',TETHER:'Tether De-peg',SPR_FLOOR:'SPR Heel Floor',GENIUS:'GENIUS Act Signed',SAUDI_PEG:'Saudi Peg Review',YANBU:'Yanbu Strike'};
 
-    let dFX = '—', dFXcls = 'neu';
-    let dJGB = '—', dJGBcls = 'neu';
-    let dUS = '—', dUScls = 'neu';
+// ─── App ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [res,setRes]=useState(null);
+  const [running,setRunning]=useState(false);
+  const [prog,setProg]=useState(0);
+  const [nRuns,setNRuns]=useState(400);
+  const [params,setParams]=useState({bojP:0.85,houth:1.0,cSup:1.0});
 
-    if(prev) {
-      if(r._usdjpy !== null && prev._usdjpy !== null) {
-        const v = r._usdjpy - prev._usdjpy; dFX = (v > 0 ? '+' : '') + v.toFixed(1); dFXcls = v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu';
-      }
-      if(r._jgb !== null && prev._jgb !== null) {
-        const v = (r._jgb - prev._jgb) * 100; dJGB = (v > 0 ? '+' : '') + v.toFixed(1) + 'bp'; dJGBcls = v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu';
-      }
-      if(r._us10y !== null && prev._us10y !== null) {
-        const v = (r._us10y - prev._us10y) * 100; dUS = (v > 0 ? '+' : '') + v.toFixed(1) + 'bp'; dUScls = v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu';
+  const run=useCallback(async()=>{
+    setRunning(true);setProg(0);setRes(null);
+    const hists=[];
+    const CHUNK=40;
+    for(let i=0;i<nRuns;i++){
+      const r=mkRng(42+i*7919);
+      hists.push(simRun(params,r));
+      if(i%CHUNK===CHUNK-1){
+        setProg((i+1)/nRuns);
+        await new Promise(resolve=>setTimeout(resolve,0));
       }
     }
+    setProg(1);
+    setRes(aggregate(hists));
+    setRunning(false);
+  },[nRuns,params]);
 
-    const isTrigger = r._usdjpy !== null && r._usdjpy > state.fxRedline;
-    html += `<tr class="${isTrigger ? 'trigger-row' : ''}">
-      <td>${d}</td>
-      <td>${usdjpy}</td>
-      <td class="${dFXcls}">${dFX}</td>
-      <td>${jgb}</td>
-      <td class="${dJGBcls}">${dJGB}</td>
-      <td>${us10y}</td>
-      <td class="${dUScls}">${dUS}</td>
-      <td>${spread}</td>
-      <td class="hike-cell">${boj}</td>
-      <td class="hike-cell ${r._hikep !== null && r._hikep > 0.6 ? 'pos' : ''}">${hikep}</td>
-    </tr>`;
-  });
-  tbody.innerHTML = html || '<tr><td colspan="10" style="text-align:center;color:var(--color-text-faint)">No data</td></tr>';
+  useEffect(()=>{run();},[]);
+
+  const crashP=res?res.crashWks.length/res.N:0;
+  const maxCrash=res?Math.max(...res.crashDist,1):1;
+
+  return (
+    <div className="app">
+
+      {/* Header */}
+      <div className="hdr">
+        <div>
+          <div className="hdr-title">⬡ God's Eye — Full Convergence Strategic Intelligence Engine v1.0</div>
+          <div className="hdr-sub">Agent-Based Simulation · Monte Carlo · GMM Regime Discovery (BIC) · Jun 8 – Dec 31, 2026</div>
+        </div>
+        <div className="badges">
+          <span className="badge b-red">COMPOSITE 91%</span>
+          <span className="badge b-ora">CB-D/E</span>
+          {res&&<span className="badge b-red">FLASH CRASH {(crashP*100).toFixed(0)}%</span>}
+          <span className="badge b-yel">BOJ WINDOW JUN 16-17</span>
+          <span className="badge b-blu">LEG 8 → 89% (HOUTHI BLOCKADE)</span>
+          <span className="badge b-grn">SPR FLOOR ~JUL 1</span>
+        </div>
+        <button className="rbtn" onClick={run} disabled={running}>
+          {running?'RUNNING '+Math.round(prog*100)+'%':'▶ RUN '+nRuns+' SIMULATIONS'}
+        </button>
+      </div>
+
+      {/* Progress */}
+      {running&&<div className="prog-wrap"><div className="prog-fill" style={{width:(prog*100)+'%'}}/></div>}
+
+      {/* Controls */}
+      <div className="ctrls">
+        <div className="ctrl">
+          <label>Simulations <span>{nRuns}</span></label>
+          <input type="range" min="100" max="1500" step="100" value={nRuns} onChange={e=>setNRuns(+e.target.value)}/>
+        </div>
+        <div className="ctrl">
+          <label>BOJ Hike Prob <span>{Math.round(params.bojP*100)}%</span></label>
+          <input type="range" min="0.2" max="1" step="0.05" value={params.bojP}
+            onChange={e=>setParams(p=>Object.assign({},p,{bojP:+e.target.value}))}/>
+        </div>
+        <div className="ctrl">
+          <label>Houthi Escalation <span>{params.houth.toFixed(1)}×</span></label>
+          <input type="range" min="0.2" max="3" step="0.1" value={params.houth}
+            onChange={e=>setParams(p=>Object.assign({},p,{houth:+e.target.value}))}/>
+        </div>
+        <div className="ctrl">
+          <label>Ceasefire Suppression <span>{params.cSup.toFixed(1)}×</span></label>
+          <input type="range" min="0.1" max="2" step="0.1" value={params.cSup}
+            onChange={e=>setParams(p=>Object.assign({},p,{cSup:+e.target.value}))}/>
+        </div>
+      </div>
+
+      {!res&&!running&&<div style={{textAlign:'center',padding:'60px',color:'#374151'}}>Initializing...</div>}
+
+      {res&&(
+        <React.Fragment>
+
+          {/* Row 1: Scenarios + PCA */}
+          <div className="g2">
+            <div className="card">
+              <div className="ctitle"><span className="dot"/>Scenario Probability Distribution — {res.N} Monte Carlo Runs</div>
+              <SvgAreaChart data={res.tl} keys={['pA','pB','pC','pD','pE']} colors={SCEN_COLORS} height={200}/>
+              <div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:10}}>
+                {['A','B','C','D','E'].map((s,i)=>(
+                  <div key={s} style={{display:'flex',alignItems:'center',gap:4}}>
+                    <div style={{width:10,height:10,borderRadius:2,background:SCEN_COLORS[i]}}/>
+                    <span style={{fontSize:10,color:'#6b7280'}}>{s}: <b style={{color:'#e2e8f0'}}>{(res.fScen[s]*100).toFixed(1)}%</b></span>
+                  </div>
+                ))}
+              </div>
+              <div style={{marginTop:10}}>
+                {['A','B','C','D','E'].map(function(s,i){
+                  const p=res.fScen[s];
+                  const ci=res.fCI[s];
+                  return (
+                    <div key={s} className="sbar-row">
+                      <span className="sbar-lbl">{s}</span>
+                      <span className="sbar-name">{SCEN_LABELS[s]}</span>
+                      <div className="sbar-track" style={{position:'relative'}}>
+                        {/* CI band */}
+                        {ci&&<div style={{position:'absolute',top:0,bottom:0,left:(ci.lo*100)+'%',width:((ci.hi-ci.lo)*100)+'%',background:SCEN_COLORS[i],opacity:.18,borderRadius:3}}/>}
+                        <div className="sbar-fill" style={{width:(p*100)+'%',background:SCEN_COLORS[i]}}>
+                          <span className="sbar-pct">{(p*100).toFixed(1)}%</span>
+                        </div>
+                      </div>
+                      {ci&&<span style={{fontSize:9,color:'#374151',flexShrink:0,width:80}}>[{(ci.lo*100).toFixed(0)}–{(ci.hi*100).toFixed(0)}%]</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="ctitle">
+                <span className="dot dot-b"/>
+                GMM Regime Discovery — K={res.bestK} (BIC-Selected, Not Pre-Built)
+                <span style={{marginLeft:'auto',fontSize:9,color:'#374151'}}>
+                  BIC: {Object.entries(res.bicMap||{}).map(function(e){return 'k'+e[0]+'='+e[1];}).join(' · ')}
+                  {' · '}sil={res.sil!=null?(+res.sil).toFixed(3):'—'}
+                  {res.uncertainty!=null&&(' · unc='+res.uncertainty.toFixed(3))}
+                </span>
+              </div>
+              <PcaScatter coords={res.pcaCoords} k={res.bestK} ellipses={res.ellipses}/>
+              <div style={{fontSize:9,color:'#374151',marginTop:4,marginBottom:8}}>
+                PCA 2D projection · GMM soft assignments · ellipses = 2σ component boundaries · BIC selects K
+              </div>
+              <div className="rcards">
+                {Object.entries(res.regimes).map(function(entry){
+                  const ci=entry[0];const r=entry[1];
+                  const col=CLUSTER_COLS[+ci%CLUSTER_COLS.length];
+                  const exp=REGIME_EXPLANATIONS[r.label]||'Emergent regime identified by GMM (soft probabilistic clustering) on simulation run feature vectors. BIC criterion selected K.';
+                  return (
+                    <div key={ci} className="rcard">
+                      <div className="rtitle" style={{color:col}}>
+                        Regime {+ci+1} — {(r.pct*100).toFixed(0)}% of runs
+                        <span style={{fontSize:8,color:'#374151',marginLeft:6}}>w={r.gmmWeight!=null?r.gmmWeight.toFixed(2):'?'}</span>
+                      </div>
+                      <div style={{fontSize:9,color:'#6b7280',fontStyle:'italic',marginBottom:4}}>{r.label}</div>
+                      <div className="rstat">Brent ${r.avgBrent.toFixed(0)} · VIX {r.avgVix.toFixed(0)} · Yield {r.avgYld.toFixed(2)}%</div>
+                      <div className="rtags">
+                        {r.flashR>0.4&&<span className="rtag rtag-hot">Flash crash {(r.flashR*100).toFixed(0)}%</span>}
+                        {r.babR>0.25&&<span className="rtag rtag-hot">Bab {(r.babR*100).toFixed(0)}%</span>}
+                        {r.mineR>0.25&&<span className="rtag">Mines {(r.mineR*100).toFixed(0)}%</span>}
+                        {r.cfR>0.45&&<span className="rtag">Ceasefire {(r.cfR*100).toFixed(0)}%</span>}
+                        {r.casR>0.35&&<span className="rtag rtag-hot">Cascade {(r.casR*100).toFixed(0)}%</span>}
+                        {r.sauR>0.20&&<span className="rtag">Saudi peg {(r.sauR*100).toFixed(0)}%</span>}
+                        {r.meanResp!=null&&<span className="rtag" style={{opacity:.7}}>responsibility {r.meanResp.toFixed(2)}</span>}
+                      </div>
+                      <div className="regime-exp">{exp}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Legs + Events */}
+          <div className="g2">
+            <div className="card">
+              <div className="ctitle"><span className="dot dot-o"/>9-Leg Convergence Score Evolution</div>
+              <SvgLineChart data={res.tl} keys={['l1','l2','l3','l4','l5','l6','l7','l8','l9']}
+                colors={LEG_COLS} height={170} domainMin={0.2} domainMax={1.0}/>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>
+                {['l1','l2','l3','l4','l5','l6','l7','l8','l9'].map(function(l,i){
+                  return (
+                    <div key={l} style={{display:'flex',alignItems:'center',gap:3}}>
+                      <div style={{width:10,height:2,background:LEG_COLS[i]}}/>
+                      <span style={{fontSize:9,color:'#6b7280'}}>{LEG_LBL[l]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="card">
+              <div className="ctitle"><span className="dot dot-p"/>Event Frequency — {res.N} Simulations</div>
+              <div className="evt-list">
+                {Object.entries(res.evtF).sort(function(a,b){return b[1]-a[1];}).map(function(entry){
+                  const evt=entry[0];const f=entry[1];
+                  const col=f>0.8?'#ef4444':f>0.5?'#f97316':f>0.25?'#eab308':'#3b82f6';
+                  return (
+                    <div key={evt} className="ebar-row">
+                      <div className="ebar-name">{EVT_LBL[evt]||evt}</div>
+                      <div className="ebar-track">
+                        <div className="ebar-fill" style={{width:(f*100)+'%',background:col,opacity:.75}}/>
+                      </div>
+                      <div className="ebar-pct">{(f*100).toFixed(0)}%</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Row 3: Macro + Flash crash timing */}
+          <div className="g2">
+            <div className="card">
+              <div className="ctitle"><span className="dot dot-b"/>Mean Brent + VIX Trajectories</div>
+              <SvgLineChart data={res.tl} keys={['brent','vix']}
+                colors={['#f97316','#ef4444']} height={150} domainMin={15} domainMax={210}/>
+              <div style={{display:'flex',gap:12,marginTop:6}}>
+                <div style={{display:'flex',alignItems:'center',gap:4}}><div style={{width:12,height:2,background:'#f97316'}}/><span style={{fontSize:10,color:'#6b7280'}}>Brent ($/bbl)</span></div>
+                <div style={{display:'flex',alignItems:'center',gap:4}}><div style={{width:12,height:2,background:'#ef4444'}}/><span style={{fontSize:10,color:'#6b7280'}}>VIX</span></div>
+              </div>
+            </div>
+            <div className="card">
+              <div className="ctitle">
+                <span className="dot"/>Flash Crash Timing Distribution
+                <span style={{marginLeft:'auto',fontSize:9,color:'#4b5563'}}>
+                  {res.crashWks.length>0
+                    ?((res.crashWks.length/res.N*100).toFixed(0))+'% probability · mean wk '+(res.crashWks.reduce(function(a,b){return a+b;},0)/res.crashWks.length).toFixed(1)
+                    :'No flash crash events'}
+                </span>
+              </div>
+              <div style={{display:'flex',gap:2,alignItems:'flex-end',height:90,marginBottom:8}}>
+                {res.crashDist.map(function(v,w){
+                  return (
+                    <div key={w} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',height:'100%',justifyContent:'flex-end'}}>
+                      <div style={{width:'100%',background:v>0?'#ef4444':'transparent',height:v>0?(v/maxCrash*85)+'%':'0',borderRadius:'2px 2px 0 0',opacity:.8,minHeight:v>0?2:0}}/>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'#374151'}}>
+                <span>Wk 0 Jun 8</span><span>Wk 15 Sep 28</span><span>Wk 29 Dec 29</span>
+              </div>
+              {res.crashWks.length>0&&(
+                <div style={{marginTop:8,padding:'8px 10px',background:'rgba(239,68,68,.07)',border:'1px solid rgba(239,68,68,.2)',borderRadius:4,fontSize:10,color:'#fca5a5'}}>
+                  BOJ hike → carry unwind → flash crash chain · median week {res.crashWks.sort(function(a,b){return a-b;})[Math.floor(res.crashWks.length/2)]}
+                  {' '}(~{['Jun','Jul','Aug','Sep'][Math.floor((res.crashWks.sort(function(a,b){return a-b;})[Math.floor(res.crashWks.length/2)]*7)/90)||0]} 2026)
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* L(t) State Vector Panel */}
+          <StateVectorPanel/>
+
+          {/* Correlation heatmap */}
+          <CorrelationHeatmap matrix={res.corrMatrix}/>
+
+          {/* Actor Registry */}
+          <ActorRegistry/>
+
+          <div className="foot">
+            God's Eye v1.0 · {res.N.toLocaleString()} Monte Carlo runs · {res.bestK} emergent regimes discovered via GMM (BIC model selection) ·
+            BIC by K: {res.bicMap?Object.entries(res.bicMap).map(function(e){return 'k'+e[0]+'='+e[1];}).join(', '):'—'} ·
+            Regimes are emergent from simulation data — not pre-built scenario taxonomy
+          </div>
+
+        </React.Fragment>
+      )}
+    </div>
+  );
 }
 
-// ── Main render ────────────────────────────────────────────────────────
-function render() {
-  const raw = state.data[state.scenario];
-  if(!raw) { renderFallback(); return; }
-  const rows = applyAdjustments(raw);
-  renderKPIs(rows);
-  renderOverlayChart(rows);
-  renderSpreadChart(rows);
-  renderTable(rows);
-
-  // Gauge — use last row hike prob or derive from spread + FX
-  const last = rows[rows.length - 1];
-  let hikeP = last._hikep;
-  if(hikeP === null) {
-    const spreadBp = last._spread || 200;
-    const fxPressure = last._usdjpy ? Math.max(0, (last._usdjpy - state.fxTarget) / (state.fxRedline - state.fxTarget)) : 0;
-    hikeP = Math.min(0.95, Math.max(0.05, fxPressure * 0.6 + (1 - spreadBp / 300) * 0.4));
-  }
-  renderGauge(hikeP);
-}
-
-function renderFallback() {
-  // Synthetic demonstration data if CSV cannot be loaded
-  const months = [1,2,3,4,5,6,7,8,9,10,11,12];
-  const fallback = months.map(m => ({
-    month: m,
-    usdjpy_med: 155 + m * 0.4 + (Math.random() - 0.5) * 2,
-    jgb10y_med: 2.1 + m * 0.05 + (Math.random() - 0.5) * 0.05,
-    us10y_med:  4.3 + m * 0.02 + (Math.random() - 0.5) * 0.08,
-    boj_rate_med: 0.5 + (m > 6 ? 0.25 : 0),
-    hike_prob: 0.3 + m * 0.04
-  }));
-  state.data[state.scenario] = fallback;
-  render();
-  setStatus('error', 'Using synthetic fallback data — place CSV files in data/');
-}
-
-// ── Controls wiring ────────────────────────────────────────────────────
-document.querySelectorAll('[data-scenario]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('[data-scenario]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    state.scenario = btn.dataset.scenario;
-    if(!state.data[state.scenario]) {
-      setStatus('loading', 'Loading ' + state.scenario + '…');
-      const base = location.pathname.includes('/docs/') ? '../data/' : './data/';
-      loadCSV(base + 'japan_hormuz_mc_' + state.scenario + '.csv').then(d => {
-        state.data[state.scenario] = d;
-        setStatus('ok', state.scenario + ' loaded');
-        render();
-      }).catch(() => { renderFallback(); });
-    } else render();
-  });
-});
-
-function wireSlider(id, valId, fmt, key) {
-  const el = document.getElementById(id);
-  const vEl = document.getElementById(valId);
-  el.addEventListener('input', () => {
-    state[key] = parseFloat(el.value);
-    vEl.textContent = fmt(state[key]);
-  });
-}
-wireSlider('fx-target',   'fx-target-val',  v => v.toFixed(1),       'fxTarget');
-wireSlider('fx-redline',  'fx-redline-val', v => v.toFixed(1),       'fxRedline');
-wireSlider('repat-mult',  'repat-mult-val', v => v.toFixed(2) + '×', 'repatMult');
-
-document.querySelectorAll('[data-overlay]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const key = btn.dataset.overlay;
-    state.overlays[key] = !state.overlays[key];
-    btn.classList.toggle('on', state.overlays[key]);
-    btn.setAttribute('aria-checked', state.overlays[key]);
-    render();
-  });
-});
-
-document.getElementById('run-btn').addEventListener('click', render);
-
-// ── Boot ───────────────────────────────────────────────────────────────
-loadAll();
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
 </script>
 </body>
 </html>
