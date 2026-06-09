@@ -103,13 +103,57 @@ svg.chart{width:100%;overflow:visible}
 .regime-exp{font-size:9px;color:#6b7280;line-height:1.5;margin-top:6px;border-top:1px solid #1e2938;padding-top:6px}
 /* CI badge */
 .ci-badge{font-size:8px;color:#374151;margin-left:6px}
+
+
+.tab-bar{display:flex;gap:3px;background:#0d1117;border:1px solid #1e2938;border-radius:8px;padding:4px;flex-wrap:wrap}
+.tab-btn{padding:7px 18px;border:none;background:transparent;color:#4b5563;font-family:inherit;font-size:9px;font-weight:700;letter-spacing:.12em;cursor:pointer;border-radius:5px;transition:all .15s;text-transform:uppercase}
+.tab-btn:hover{color:#9ca3af;background:rgba(255,255,255,.04)}
+.tab-btn.tab-active{background:rgba(239,68,68,.15);color:#ef4444}
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.drawer{background:#0d1117;border-top:1px solid #1e2938;border-left:1px solid #1e2938;border-right:1px solid #1e2938;border-radius:12px 12px 0 0;padding:20px 24px 28px;width:100%;max-width:860px;max-height:65vh;overflow-y:auto}
+.drawer-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.drawer-title{font-size:11px;font-weight:700;letter-spacing:.1em;color:#e2e8f0;text-transform:uppercase}
+.drawer-close{background:transparent;border:1px solid #1e2938;color:#4b5563;cursor:pointer;font-family:inherit;font-size:9px;font-weight:700;letter-spacing:.08em;padding:5px 12px;border-radius:4px}
+.drawer-close:hover{border-color:#374151;color:#9ca3af}
+.prov-grid{display:grid;grid-template-columns:110px 1fr;gap:5px 14px;font-size:10px;margin-bottom:12px}
+.prov-k{color:#374151;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:8px;padding-top:1px}
+.prov-v{color:#9ca3af;line-height:1.5}
+.prov-code{font-family:'SF Mono',Menlo,monospace;background:#070b10;border:1px solid #111827;padding:6px 10px;border-radius:4px;font-size:9px;color:#60a5fa;margin-top:8px;white-space:pre-wrap;word-break:break-all}
+.btype{padding:2px 6px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:.07em;display:inline-block;vertical-align:middle}
+.btype-obs{background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+.btype-der{background:rgba(234,179,8,.12);color:#fbbf24;border:1px solid rgba(234,179,8,.3)}
+.btype-sim{background:rgba(168,85,247,.12);color:#c084fc;border:1px solid rgba(168,85,247,.3)}
+.info-btn{background:transparent;border:none;color:#1e2938;cursor:pointer;font-size:10px;padding:0 3px;font-family:inherit;vertical-align:middle;line-height:1;transition:color .1s}
+.info-btn:hover{color:#6b7280}
+.carry-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.carry-cell{background:#111827;border-radius:6px;padding:10px 12px;border:1px solid #1e2938}
+.carry-cell-label{font-size:8px;color:#4b5563;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.carry-cell-val{font-size:22px;font-weight:700;line-height:1.1}
+.carry-cell-sub{font-size:9px;margin-top:3px}
+.carry-thresh{display:inline-block;padding:2px 5px;border-radius:3px;font-size:8px;font-weight:700;margin-top:5px}
+.ct-warn{background:rgba(234,179,8,.1);color:#fbbf24;border:1px solid rgba(234,179,8,.25)}
+.ct-alert{background:rgba(249,115,22,.1);color:#f97316;border:1px solid rgba(249,115,22,.25)}
+.ct-crit{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)}
+.repro{background:#070b10;border:1px solid #111827;border-radius:6px;padding:12px 16px;margin-top:10px}
+.repro-title{font-size:8px;color:#1e2938;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;font-weight:700}
+.repro-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.repro-item{font-size:9px}
+.repro-key{color:#374151;text-transform:uppercase;letter-spacing:.06em;font-size:8px}
+.repro-val{color:#4b5563;font-weight:700;margin-top:1px;font-size:10px}
+.src-table{width:100%;border-collapse:collapse;font-size:10px}
+.src-table th{text-align:left;padding:7px 10px;color:#374151;font-size:8px;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid #1e2938;white-space:nowrap}
+.src-table td{padding:8px 10px;border-bottom:1px solid #0d1117;color:#6b7280;vertical-align:top;line-height:1.5}
+.src-table tr:hover td{background:rgba(255,255,255,.015)}
+.src-table td:first-child{color:#9ca3af;font-weight:700;font-size:9px;white-space:nowrap}
+
 </style>
 </head>
 <body>
-<div id="root"><div style="color:#4b5563;padding:40px;font-family:monospace;text-align:center">Loading God's Eye Engine...</div></div>
-
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#374151;font-family:'SF Mono',monospace;font-size:12px;letter-spacing:.1em;">Loading God's Eye Engine...</div></div>
 <script type="text/babel">
-const {useState,useEffect,useCallback,useRef} = React;
+
+const {useState,useEffect,useCallback,useRef}=React;
+
 
 // ─── Actor Registry Data ──────────────────────────────────────────────────────
 const ACTORS = [
@@ -149,7 +193,92 @@ const REGIME_EXPLANATIONS = {
   'Mixed Escalation — Partial Resolution': 'Ceasefire signals alternate with collapses per the documented pattern. Some kinetic events occur but not full escalation. Financial stress builds without acute flash crash. Intermediate Brent levels. The framework\'s coupling rules produce a gradual convergence rather than a discrete event. Composite score rises but CB-E does not fully activate.',
 };
 
-// ─── Seeded RNG ───────────────────────────────────────────────────────────────
+
+const PROVENANCE_MAP = {
+  l1:{label:'War/Energy Chokepoints',type:'observed',value:'0.99',
+    source:'PGSA Operations, MARAD Advisory 2026-020, Lloyd\'s Bimco rerouting data',
+    file:'state_vector_compute.py → compute_l1_war_energy()',
+    rule:'PGSA toll confirmed active + 14.5mb/d offline + SPR heel approaching Jul 1',
+    conf:'confirmed',updated:'Jun 8 2026',
+    params:'PGSA_ACTIVE=true | HORMUZ_OFFLINE_MBD=14.5 | SPR_FLOOR_DATE=Jul_1'},
+  l2:{label:'GCC/Petrodollar Strain',type:'derived',value:'0.89',
+    source:'US Treasury TIC H.4.1 Mar 2026 | BOJ/MoF weekly | Coinbase OTC flow',
+    file:'state_vector_compute.py → compute_l2_gcc_petrodollar()',
+    rule:'Official sector net -$37.9B TIC + USD/JPY trajectory + dollar index stress',
+    conf:'confirmed',updated:'Mar 31 2026 (TIC lag 45d)',
+    params:'TIC_OFFICIAL=-37900M | USDJPY=159 | DXY_STRESS=high'},
+  l3:{label:'Private Credit/NBFI',type:'observed',value:'0.67',
+    source:'Apollo LP letter Apr 2026 | Barings redemption disclosure | Dimon JPM letter Apr 6',
+    file:'state_vector_compute.py → compute_l3_private_credit()',
+    rule:'Fund gate events as liquidity mismatch signal: Apollo 45c + Barings 44.3%',
+    conf:'confirmed',updated:'Apr 6 2026',
+    params:'APOLLO_GATE=0.45 | BARINGS_GATE=0.443 | DIMON_LETTER=true'},
+  l4:{label:'Settlement Rails',type:'derived',value:'0.32',
+    source:'US Senate GENIUS Act floor status | Tether reserve attestation | BIS CBDC tracker',
+    file:'state_vector_compute.py → compute_l4_settlement_rails()',
+    rule:'GENIUS Act prob x captive UST demand vs Tether systemic risk offset',
+    conf:'inferred',updated:'Jun 5 2026',
+    params:'GENIUS_PROB=0.30 | TETHER_AUM=134B | SWIFT_INTACT=true'},
+  l5:{label:'Food/Fertilizer',type:'observed',value:'0.83',
+    source:'QAFCO production disruption notice | Kuwait FM Ras Laffan | Bahrain FM',
+    file:'state_vector_compute.py → compute_l5_food_fertilizer()',
+    rule:'Confirmed LNG disruptions → ammonia offline → global fertilizer cascade',
+    conf:'confirmed',updated:'Jun 1 2026',
+    params:'QAFCO_OFFLINE_PCT=0.14 | KUWAIT_FM=true | BAHRAIN_FM=true'},
+  l6:{label:'Munitions/MIC',type:'derived',value:'0.45',
+    source:'US $200B supplemental authorization | NATO stockpile survey | Raytheon Q1 2026',
+    file:'state_vector_compute.py → compute_l6_munitions_mic()',
+    rule:'Production queue backlog vs authorized supplemental vs NATO drawdown rate',
+    conf:'inferred',updated:'May 15 2026',
+    params:'SUPPLEMENTAL=200B | NATO_STRETCH=true | QUEUE=elevated'},
+  l7:{label:'Semiconductor/Taiwan',type:'inferred',value:'0.42',
+    source:'TSMC implied risk index | CHIPS Act disbursement tracker | BIS entity list',
+    file:'state_vector_compute.py → compute_l7_semiconductor_taiwan()',
+    rule:'Taiwan strait risk implied by US carrier gap + CHIPS Act domestic offset (partial)',
+    conf:'inferred',updated:'Jun 1 2026',
+    params:'TSMC_RISK_IMPLIED=0.42 | CHIPS_DISBURSED=31pct | CARRIER_GAPS=active'},
+  l8:{label:'Maritime/Insurance',type:'observed',value:'0.89',
+    source:'AIS routing data | Houthi Jun 8 declaration | MARAD Advisory | War Risk',
+    file:'state_vector_compute.py → compute_l8_maritime_insurance()',
+    rule:'Houthi Bab al-Mandab blockade confirmed Jun 8 + Maersk reversal + war risk spike',
+    conf:'confirmed',updated:'Jun 8 2026',
+    params:'HOUTHI_DECLARED=true | MAERSK_REVERSED=true | WAR_RISK=elevated'},
+  l9:{label:'AI/Labor',type:'inferred',value:'0.38',
+    source:'BLS employment | LMM adoption rates | UAW/Teamsters Q2 watch list',
+    file:'state_vector_compute.py → compute_l9_ai_labor()',
+    rule:'AI displacement signal + Q2 labor action risk (low-medium confidence)',
+    conf:'inferred',updated:'Jun 1 2026',
+    params:'LMM_ADOPTION=accelerating | STRIKE_RISK=moderate | DISPLACEMENT=0.38'},
+  l_cross:{label:'JPY Carry Cross-Cut',type:'derived',value:'1.00',
+    source:'BOJ meeting schedule | USD/JPY spot | CFTC COT JPY | BIS cross-border flows',
+    file:'state_vector_compute.py → compute_l_cross_jpy_carry()',
+    rule:'BOJ Jun 16-17 window + 288bp US-JP differential + $4-20T carry = MAX cross-cut',
+    conf:'confirmed',updated:'Jun 8 2026',
+    params:'BOJ_WINDOW=Jun_16-17 | USDJPY=159 | UST_JP_SPREAD=288bp | CARRY_EXPO=4-20T'},
+  composite:{label:'Composite Convergence Score',type:'derived',value:'91%',
+    source:'Weighted harmonic mean of 9 legs + cross-cut amplifier',
+    file:'state_vector_compute.py → compute_composite()',
+    rule:'w_i * l_i harmonic mean; cross-cut at 1.00 amplifies to CB-D/E boundary',
+    conf:'derived',updated:'Jun 8 2026',
+    params:'WEIGHTS=[0.25,0.20,0.12,0.08,0.12,0.08,0.05,0.15,0.05] | CROSS_AMP=1.0'},
+  flashCrash:{label:'Flash Crash Probability',type:'simulated',value:'variable',
+    source:'Monte Carlo engine output — emergent, not an input parameter',
+    file:'gods_eye_engine.py → simRun() → carry_unwind_trigger()',
+    rule:'Fires: bojHiked=true AND (usdjpy<155 OR 2wks post-hike) AND cascade trigger',
+    conf:'model output',updated:'Each simulation run',
+    params:'N_RUNS=variable | SEED=42+i*7919 | BOJ_P=params.bojP'},
+};
+
+
+const CARRY_HIST=[
+  {mo:'Jan 26',usdjpy:152.1,jgb:1.50,spr:312},
+  {mo:'Feb 26',usdjpy:153.8,jgb:1.55,spr:308},
+  {mo:'Mar 26',usdjpy:155.2,jgb:1.60,spr:303},
+  {mo:'Apr 26',usdjpy:157.1,jgb:1.65,spr:296},
+  {mo:'May 26',usdjpy:158.4,jgb:1.70,spr:290},
+  {mo:'Jun 26',usdjpy:159.0,jgb:1.75,spr:288},
+];
+
 function mkRng(seed) {
   let s = (seed >>> 0) || 1;
   return function() {
@@ -694,7 +823,7 @@ function aggregate(hists) {
   return {tl,evtF,fScen,fCI,crashDist,crashWks,regimes,bestK,bicMap,sil,uncertainty,ellipses,pcaCoords,N,corrMatrix};
 }
 
-// ─── SVG Chart helpers ────────────────────────────────────────────────────────
+
 function SvgAreaChart({data,keys,colors,height=180}) {
   const W=560,H=height,PL=36,PR=8,PT=6,PB=22;
   const iW=W-PL-PR, iH=H-PT-PB;
@@ -852,6 +981,7 @@ const STATE_VECTOR = {
   ]
 };
 
+
 function RadarChart({legs, cross, analogues}) {
   const W=300,H=300,CX=W/2,CY=H/2,R=110;
   const allLegs=[...legs,cross];
@@ -927,125 +1057,133 @@ function RadarChart({legs, cross, analogues}) {
   );
 }
 
-function StateVectorPanel() {
-  const {legs, cross, constraintBand, composite, asOf, analogues} = STATE_VECTOR;
 
-  function confBadge(c) {
-    const styles={
-      confirmed:{background:'rgba(34,197,94,.12)',color:'#4ade80',border:'1px solid rgba(34,197,94,.25)'},
-      inferred: {background:'rgba(234,179,8,.12)', color:'#fbbf24',border:'1px solid rgba(234,179,8,.25)'},
-      speculative:{background:'rgba(239,68,68,.12)',color:'#f87171',border:'1px solid rgba(239,68,68,.25)'},
-    };
-    const s=styles[c]||styles.inferred;
-    return <span style={{...s,fontSize:7,padding:'1px 4px',borderRadius:2,marginLeft:4}}>{c.toUpperCase()}</span>;
+
+function StateVectorPanel({onInspect}) {
+  const {legs,cross,constraintBand,composite,asOf,analogues}=STATE_VECTOR;
+  function confBadge(c){
+    const s={confirmed:{background:'rgba(34,197,94,.12)',color:'#4ade80',border:'1px solid rgba(34,197,94,.25)'},
+             inferred:{background:'rgba(234,179,8,.12)',color:'#fbbf24',border:'1px solid rgba(234,179,8,.25)'},
+             speculative:{background:'rgba(239,68,68,.12)',color:'#f87171',border:'1px solid rgba(239,68,68,.25)'}};
+    const st=s[c]||s.inferred;
+    return <span style={{...st,fontSize:7,padding:'1px 4px',borderRadius:2,marginLeft:4}}>{c.toUpperCase()}</span>;
   }
-
+  const TYPE_CLS={observed:'btype-obs',derived:'btype-der',inferred:'btype-der',simulated:'btype-sim'};
   return (
     <div className="card">
       <div className="ctitle">
-        <span className="dot"/>
-        L(t) ∈ ℝ¹⁰ — Formal State Vector · {asOf}
+        <span className="dot"/>L(t) &#8712; &#8477;&#185;&#8304; &mdash; Formal State Vector &middot; {asOf}
         <span style={{marginLeft:'auto',display:'flex',gap:6,alignItems:'center'}}>
           <span style={{fontSize:10,color:'#ef4444',fontWeight:700}}>COMPOSITE {Math.round(composite*100)}%</span>
-          <span style={{fontSize:9,background:'rgba(239,68,68,.2)',color:'#ef4444',border:'1px solid rgba(239,68,68,.4)',padding:'1px 6px',borderRadius:2}}>{constraintBand}</span>
+          <button className="info-btn" onClick={function(){onInspect&&onInspect('composite');}}>&#9432;</button>
+          <span style={{fontSize:9,background:'rgba(239,68,68,.2)',color:'#ef4444',border:'1px solid rgba(239,68,68,.4)',padding:'2px 7px',borderRadius:3,fontWeight:700}}>{constraintBand}</span>
         </span>
       </div>
-
       <div style={{display:'flex',gap:16,alignItems:'flex-start'}}>
-
-        {/* Radar chart */}
         <div style={{flexShrink:0,width:240}}>
           <RadarChart legs={legs} cross={cross} analogues={analogues}/>
           <div style={{marginTop:6,display:'flex',gap:8,flexWrap:'wrap'}}>
             <div style={{display:'flex',alignItems:'center',gap:3}}>
               <div style={{width:16,height:2,background:'#ef4444'}}/><span style={{fontSize:8,color:'#6b7280'}}>Current (Jun 8)</span>
             </div>
-            {analogues.map(function(a){
-              return <div key={a.id} style={{display:'flex',alignItems:'center',gap:3}}>
-                <div style={{width:16,height:1,background:a.col,opacity:.6}}/><span style={{fontSize:8,color:'#6b7280'}}>{a.label}</span>
-              </div>;
-            })}
+            {analogues.map(function(a){return <div key={a.id} style={{display:'flex',alignItems:'center',gap:3}}>
+              <div style={{width:16,height:1,background:a.col,opacity:.6}}/><span style={{fontSize:8,color:'#6b7280'}}>{a.label}</span>
+            </div>;})}
           </div>
         </div>
-
-        {/* Z-score bars */}
         <div style={{flex:1,minWidth:0}}>
           {[...legs,cross].map(function(l){
             const v=l.val;
             const col=v>=0.85?'#ef4444':v>=0.65?'#f97316':v>=0.45?'#eab308':'#60a5fa';
-            const chgSign=l.change>0?'+':l.change<0?'':' ';
+            const prov=PROVENANCE_MAP[l.id];
+            const tc=prov?TYPE_CLS[prov.type]||'btype-der':'btype-der';
             return (
-              <div key={l.id} style={{marginBottom:6}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:2}}>
-                  <span style={{fontSize:9,color:'#9ca3af',width:170,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{l.label}{confBadge(l.conf)}</span>
-                  <div style={{display:'flex',gap:4,alignItems:'center'}}>
-                    {l.change!==0&&<span style={{fontSize:8,color:l.change>0?'#4ade80':'#f87171'}}>{chgSign}{l.change}pp</span>}
-                    <span style={{fontSize:10,fontWeight:700,color:col,width:36,textAlign:'right'}}>{Math.round(v*100)}%</span>
+              <div key={l.id} style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
+                <div style={{width:140,flexShrink:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:3}}>
+                    <span style={{fontSize:9,color:'#9ca3af'}}>{l.label}</span>
+                    <button className="info-btn" onClick={function(){onInspect&&onInspect(l.id);}} title="Inspect provenance">&#9432;</button>
+                    {prov&&<span className={'btype '+tc} style={{fontSize:7,padding:'1px 3px'}}>{prov.type.slice(0,3).toUpperCase()}</span>}
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
+                    {l.change!==0&&<span style={{fontSize:8,color:l.change>0?'#ef4444':'#4ade80',fontWeight:700}}>{l.change>0?'↑':'↓'}{Math.abs(l.change)}</span>}
+                    {confBadge(l.conf||'inferred')}
                   </div>
                 </div>
-                <div style={{height:6,background:'rgba(255,255,255,.06)',borderRadius:3,overflow:'hidden'}}>
-                  <div style={{height:'100%',width:(v*100)+'%',background:col,borderRadius:3,opacity:.8}}/>
+                <div style={{flex:1,background:'#111827',height:18,borderRadius:3,overflow:'hidden',position:'relative'}}>
+                  <div style={{height:'100%',background:col,width:(v*100)+'%',borderRadius:3,opacity:.8}}/>
+                  <span style={{position:'absolute',left:6,top:'50%',transform:'translateY(-50%)',fontSize:9,fontWeight:700,color:'#fff'}}>{(v*100).toFixed(0)}%</span>
                 </div>
-                <div style={{display:'flex',gap:4,marginTop:2,flexWrap:'wrap'}}>
-                  {(l.components||[]).map(function(c,ci){
-                    return <span key={ci} style={{fontSize:7,color:'#374151',background:'rgba(255,255,255,.04)',padding:'0 3px',borderRadius:2}}>{c}</span>;
-                  })}
+                <div style={{width:100,flexShrink:0}}>
+                  {l.components&&<div style={{fontSize:8,color:'#374151',lineHeight:1.4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                    {l.components.slice(0,2).join(' · ')}
+                  </div>}
                 </div>
               </div>
             );
           })}
         </div>
       </div>
-
-      {/* Constraint band progression */}
-      <div style={{marginTop:10,padding:'8px 10px',background:'rgba(239,68,68,.05)',border:'1px solid rgba(239,68,68,.15)',borderRadius:4}}>
-        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:4}}>
-          {['CB-A','CB-B','CB-C','CB-D','CB-E'].map(function(cb){
-            const active=constraintBand.includes(cb);
-            const threshold=constraintBand.includes('threshold')&&cb==='CB-E';
-            return <span key={cb} style={{
-              fontSize:8,padding:'2px 6px',borderRadius:2,
-              background:active||threshold?'rgba(239,68,68,.2)':'transparent',
-              color:active||threshold?'#f87171':'#374151',
-              border:'1px solid '+(active||threshold?'rgba(239,68,68,.4)':'#1e2938'),
-              fontWeight:active?700:400
-            }}>{cb}{threshold?' ⚠':''}  </span>;
-          })}
-        </div>
-        <div style={{fontSize:9,color:'#6b7280'}}>
-          L(t) = σ(Σ w_ij · z_ij(t)) · Components: 15/21 live · Gaps require commercial feeds · State vector updated Jun 8, 2026
+      <div className="lgrid" style={{marginTop:12}}>
+        {legs.map(function(l){
+          const col=l.val>=0.85?'#ef4444':l.val>=0.65?'#f97316':l.val>=0.45?'#eab308':'#60a5fa';
+          return <div key={l.id} className="lcell" onClick={function(){onInspect&&onInspect(l.id);}} style={{cursor:'pointer'}}>
+            <div className="lnum">{l.id.toUpperCase()}</div>
+            <div className="lval" style={{color:col}}>{(l.val*100).toFixed(0)}</div>
+            <div className="llbl">{l.label}</div>
+          </div>;
+        })}
+        <div className="lcell" onClick={function(){onInspect&&onInspect('l_cross');}} style={{cursor:'pointer',borderColor:'rgba(192,132,252,.3)'}}>
+          <div className="lnum">L&#10005;</div>
+          <div className="lval" style={{color:'#c084fc'}}>{(cross.val*100).toFixed(0)}</div>
+          <div className="llbl">{cross.label}</div>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Actor Registry Component ────────────────────────────────────────────────
-function ActorRegistry() {
-  const [filter, setFilter] = useState('all');
-  const tiers = {1:'KINETIC',2:'GCC',3:'MAJOR POWERS',4:'FINANCIAL/MECH'};
-  const tierColors = {1:'t1',2:'t2',3:'t3',4:'t4'};
-  const postureColors = {esc:'pos-esc',sup:'pos-sup',neu:'pos-neu',mech:'pos-mech'};
-  const filtered = filter==='all' ? ACTORS : ACTORS.filter(function(a){return a.tier===+filter;});
+
+function ActorRegistry({search}) {
+  const [tierF,setTierF]=useState('all');
+  const [posF,setPosF]=useState('all');
+  const tiers={1:'KINETIC',2:'GCC',3:'MAJOR POWERS',4:'FINANCIAL'};
+  const tierColors={1:'t1',2:'t2',3:'t3',4:'t4'};
+  const postureColors={esc:'pos-esc',sup:'pos-sup',neu:'pos-neu',mech:'pos-mech'};
+  const filtered=ACTORS.filter(function(a){
+    if(tierF!=='all'&&a.tier!==+tierF) return false;
+    if(posF!=='all'&&a.posture!==posF) return false;
+    if(search){const q=search.toLowerCase();return a.name.toLowerCase().includes(q)||a.role.toLowerCase().includes(q)||a.signal.toLowerCase().includes(q);}
+    return true;
+  });
   return (
     <div className="card">
-      <div className="ctitle">
-        <span className="dot dot-o"/>
-        Actor Registry — {ACTORS.length} Nodes · 4 Tiers · Computable Decision Models
-        <div style={{marginLeft:'auto',display:'flex',gap:4}}>
-          {['all','1','2','3','4'].map(function(f){
-            return <button key={f} onClick={function(){setFilter(f)}} style={{
-              padding:'2px 8px',border:'1px solid',borderRadius:3,fontSize:9,cursor:'pointer',
-              fontFamily:'inherit',fontWeight:700,letterSpacing:'.06em',
-              background:filter===f?'rgba(239,68,68,.2)':'transparent',
-              color:filter===f?'#ef4444':'#4b5563',
-              borderColor:filter===f?'rgba(239,68,68,.4)':'#1e2938'
-            }}>
-              {f==='all'?'ALL':tiers[+f]||f}
-            </button>;
-          })}
-        </div>
+      <div className="ctitle"><span className="dot dot-o"/>
+        Actor Registry &mdash; {ACTORS.length} nodes &middot; {filtered.length} shown
       </div>
+      <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:12}}>
+        {['all','1','2','3','4'].map(function(f){
+          return <button key={f} onClick={function(){setTierF(f);}} style={{
+            padding:'4px 10px',border:'1px solid',borderRadius:3,fontSize:9,cursor:'pointer',
+            fontFamily:'inherit',fontWeight:700,letterSpacing:'.06em',
+            background:tierF===f?'rgba(239,68,68,.18)':'transparent',
+            color:tierF===f?'#ef4444':'#4b5563',
+            borderColor:tierF===f?'rgba(239,68,68,.4)':'#1e2938'
+          }}>{f==='all'?'ALL TIERS':tiers[+f]||f}</button>;
+        })}
+        <div style={{width:1,background:'#1e2938',margin:'0 2px'}}/>
+        {['all','esc','sup','neu','mech'].map(function(p){
+          const lbl={all:'ALL',esc:'ESCALATING',sup:'SUPPORTING',neu:'NEUTRAL',mech:'MECHANICAL'};
+          return <button key={p} onClick={function(){setPosF(p);}} style={{
+            padding:'4px 10px',border:'1px solid',borderRadius:3,fontSize:9,cursor:'pointer',
+            fontFamily:'inherit',fontWeight:700,letterSpacing:'.06em',
+            background:posF===p?'rgba(59,130,246,.18)':'transparent',
+            color:posF===p?'#60a5fa':'#374151',
+            borderColor:posF===p?'rgba(59,130,246,.4)':'#1e2938'
+          }}>{lbl[p]}</button>;
+        })}
+      </div>
+      {filtered.length===0&&<div style={{textAlign:'center',padding:'20px',color:'#374151'}}>No actors match filter.</div>}
       <div className="actor-grid">
         {filtered.map(function(a){
           return (
@@ -1066,7 +1204,234 @@ function ActorRegistry() {
   );
 }
 
-// ─── Correlation Heatmap Component ───────────────────────────────────────────
+
+function CarryTradeMonitor({onInspect}) {
+  const cur=CARRY_HIST[CARRY_HIST.length-1];
+  const W=560,H=130,PL=44,PR=10,PT=8,PB=24;
+  const iW=W-PL-PR,iH=H-PT-PB,n=CARRY_HIST.length;
+  const xS=function(i){return (i/(n-1))*iW+PL;};
+  function makeLine(key,vmin,vmax){
+    const yS=function(v){return PT+iH*(1-(v-vmin)/(vmax-vmin||1));};
+    const pts=CARRY_HIST.map(function(d,i){return xS(i)+','+yS(d[key]);});
+    return {path:'M'+pts.join('L'),yS};
+  }
+  const jpyL=makeLine('usdjpy',148,168);
+  const status=cur.usdjpy>=165?'SYSTEMIC':cur.usdjpy>=160?'HOT ZONE':cur.usdjpy>=155?'WATCH':'OK';
+  const col=cur.usdjpy>=165?'#ef4444':cur.usdjpy>=160?'#f97316':cur.usdjpy>=155?'#eab308':'#4ade80';
+  const jgbStatus=cur.jgb>=2.75?'RED LINE BREACHED':cur.jgb>=2.0?'ELEVATED':'CONTAINED';
+  const jgbCol=cur.jgb>=2.75?'#ef4444':cur.jgb>=2.0?'#f97316':'#4ade80';
+  const sprStatus=cur.spr<=150?'CARRY COLLAPSE':cur.spr<=200?'NARROWING':'WIDE';
+  const sprCol=cur.spr<=150?'#ef4444':cur.spr<=200?'#f97316':'#4ade80';
+  return (
+    <div className="card">
+      <div className="ctitle">
+        <span className="dot dot-p"/>BOJ Carry Trade Monitor &mdash; USD/JPY &middot; JGB 10Y &middot; US-JP Spread
+        <button className="info-btn" onClick={function(){onInspect&&onInspect('l_cross');}}>&#9432;</button>
+        <span className="btype btype-der" style={{marginLeft:'auto'}}>DERIVED</span>
+      </div>
+      <div className="carry-metrics">
+        <div className="carry-cell" style={{borderColor:cur.usdjpy>=160?'rgba(239,68,68,.35)':'#1e2938'}}>
+          <div className="carry-cell-label">USD / JPY</div>
+          <div className="carry-cell-val" style={{color:col}}>{cur.usdjpy.toFixed(1)}</div>
+          <div className="carry-cell-sub" style={{color:'#4b5563'}}>Jun 8 2026</div>
+          <div className="carry-thresh ct-alert">TRIGGER 155 · HOT 160 · SYSTEMIC 165</div>
+          <div style={{marginTop:4,fontSize:9,fontWeight:700,color:col}}>{status}</div>
+        </div>
+        <div className="carry-cell" style={{borderColor:cur.jgb>=2.0?'rgba(249,115,22,.35)':'#1e2938'}}>
+          <div className="carry-cell-label">JGB 10Y Yield</div>
+          <div className="carry-cell-val" style={{color:jgbCol}}>{cur.jgb.toFixed(2)}%</div>
+          <div className="carry-cell-sub" style={{color:'#4b5563'}}>Current</div>
+          <div className="carry-thresh ct-crit">RED LINE: 2.75% &#8594; UST repatriation cascade</div>
+          <div style={{marginTop:4,fontSize:9,fontWeight:700,color:jgbCol}}>{jgbStatus}</div>
+        </div>
+        <div className="carry-cell" style={{borderColor:cur.spr<=200?'rgba(249,115,22,.35)':'#1e2938'}}>
+          <div className="carry-cell-label">US-JP Spread (bp)</div>
+          <div className="carry-cell-val" style={{color:sprCol}}>{cur.spr}</div>
+          <div className="carry-cell-sub" style={{color:'#4b5563'}}>UST 10Y &minus; JGB 10Y</div>
+          <div className="carry-thresh ct-warn">COLLAPSE THRESHOLD: &lt;150bp</div>
+          <div style={{marginTop:4,fontSize:9,fontWeight:700,color:sprCol}}>{sprStatus}</div>
+        </div>
+      </div>
+      <div style={{fontSize:9,color:'#374151',marginBottom:3}}>USD/JPY Jan&ndash;Jun 2026 &middot; trigger levels: 155 watch / 160 hot zone / 165 systemic</div>
+      <svg viewBox={"0 0 "+W+" "+H} style={{width:'100%',height:H}}>
+        {[150,155,160,165].map(function(v){
+          const y=jpyL.yS(v);
+          const lc=v===165?'#ef4444':v===160?'#f97316':v===155?'#eab308':'#1e2938';
+          return <g key={v}>
+            <line x1={PL} y1={y} x2={W-PR} y2={y} stroke={lc} strokeWidth={v===165||v===160?1:0.5} strokeDasharray="4 3" opacity={0.7}/>
+            <text x={PL-3} y={y+3} fontSize={7} fill={lc} textAnchor="end" opacity={0.85}>{v}</text>
+          </g>;
+        })}
+        <path d={jpyL.path} fill="none" stroke="#c084fc" strokeWidth={2} opacity={0.9}/>
+        {CARRY_HIST.map(function(d,i){
+          const pc=d.usdjpy>=160?'#ef4444':d.usdjpy>=155?'#f97316':'#c084fc';
+          return <circle key={i} cx={xS(i)} cy={jpyL.yS(d.usdjpy)} r={3} fill={pc}/>;
+        })}
+        {CARRY_HIST.map(function(d,i){
+          return <text key={i} x={xS(i)} y={H-4} fontSize={7} fill="#374151" textAnchor="middle">{d.mo}</text>;
+        })}
+        <text x={W-6} y={14} fontSize={7} fill="#374151" textAnchor="end">BOJ WINDOW JUN 16-17 &#9660;</text>
+      </svg>
+      <div style={{marginTop:8,padding:'8px 10px',background:'rgba(168,85,247,.06)',border:'1px solid rgba(168,85,247,.15)',borderRadius:5,fontSize:9,color:'#9ca3af',lineHeight:1.6}}>
+        <b style={{color:'#c084fc'}}>Mechanism:</b> BOJ hike &#8594; USD/JPY breaks below 155 &#8594; $4-20T JPY-funded positions auto-exit &#8594; reverse carry = simultaneous UST selling + USD selling &#8594; flash crash cascade. No coordination mechanism &mdash; once triggered, self-executing. Current 288bp differential is the loaded spring.
+      </div>
+    </div>
+  );
+}
+
+
+function ReproducibilityPanel({params,nRuns,res}) {
+  if(!res) return null;
+  return (
+    <div className="repro">
+      <div className="repro-title">&#9632; Reproducibility Metadata</div>
+      <div className="repro-grid">
+        <div className="repro-item"><div className="repro-key">Engine Version</div><div className="repro-val">v1.1.0</div></div>
+        <div className="repro-item"><div className="repro-key">Simulations</div><div className="repro-val">{res.N.toLocaleString()}</div></div>
+        <div className="repro-item"><div className="repro-key">Seed Formula</div><div className="repro-val">42 + i &#215; 7919</div></div>
+        <div className="repro-item"><div className="repro-key">Regime Method</div><div className="repro-val">GMM&#xB7;EM (BIC k=2&#x2013;6)</div></div>
+        <div className="repro-item"><div className="repro-key">K Selected</div><div className="repro-val">{res.bestK} (BIC-optimal)</div></div>
+        <div className="repro-item"><div className="repro-key">Silhouette</div><div className="repro-val">{res.sil!=null?(+res.sil).toFixed(3):'&#x2014;'}</div></div>
+        <div className="repro-item"><div className="repro-key">BOJ Hike Prob</div><div className="repro-val">{Math.round(params.bojP*100)}%</div></div>
+        <div className="repro-item"><div className="repro-key">Houthi Mult</div><div className="repro-val">{params.houth.toFixed(2)}x</div></div>
+        <div className="repro-item"><div className="repro-key">Ceasefire Sup</div><div className="repro-val">{params.cSup.toFixed(2)}x</div></div>
+        <div className="repro-item"><div className="repro-key">JGB Red Line</div><div className="repro-val">{params.jgbRed.toFixed(2)}%</div></div>
+        <div className="repro-item"><div className="repro-key">FX Threshold</div><div className="repro-val">{params.fxThresh}</div></div>
+        <div className="repro-item"><div className="repro-key">Carry Mult</div><div className="repro-val">{params.carryMult.toFixed(2)}x</div></div>
+        <div className="repro-item"><div className="repro-key">Commit Hash</div><div className="repro-val" style={{fontFamily:'monospace',fontSize:9}}>9249fcc</div></div>
+        <div className="repro-item"><div className="repro-key">Data Cutoff</div><div className="repro-val">Jun 8, 2026</div></div>
+      </div>
+    </div>
+  );
+}
+
+
+function ProvenanceDrawer({metricId,onClose}) {
+  const p=PROVENANCE_MAP[metricId];
+  if(!p) return null;
+  const TYPE_CLS={observed:'btype-obs',derived:'btype-der',inferred:'btype-der',simulated:'btype-sim'};
+  const tc=TYPE_CLS[p.type]||'btype-der';
+  const typeDesc={observed:'Directly sourced from external data — not model-derived. Highest confidence.',
+    derived:'Computed from observed inputs via a deterministic rule.',
+    inferred:'Estimated from indirect signals — lower confidence.',
+    simulated:'Emergent output of Monte Carlo engine — probabilistic, not a forecast.'};
+  return (
+    <div className="drawer-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <div className="drawer">
+        <div className="drawer-hdr">
+          <div>
+            <span className="drawer-title">{p.label}</span>
+            <span className={'btype '+tc} style={{marginLeft:10}}>{p.type.toUpperCase()}</span>
+          </div>
+          <button className="drawer-close" onClick={onClose}>CLOSE &#10005;</button>
+        </div>
+        <div className="prov-grid">
+          <span className="prov-k">Value</span>
+          <span className="prov-v" style={{color:'#e2e8f0',fontWeight:700}}>{p.value}</span>
+          <span className="prov-k">Data Type</span>
+          <span className="prov-v">
+            <span className={'btype '+tc}>{p.type.toUpperCase()}</span>
+            <span style={{marginLeft:8,fontSize:9,color:'#4b5563'}}>{typeDesc[p.type]}</span>
+          </span>
+          <span className="prov-k">Source</span>
+          <span className="prov-v">{p.source}</span>
+          <span className="prov-k">Code Path</span>
+          <span className="prov-v" style={{fontFamily:'monospace',fontSize:9,color:'#60a5fa'}}>{p.file}</span>
+          <span className="prov-k">Rule</span>
+          <span className="prov-v">{p.rule}</span>
+          <span className="prov-k">Confidence</span>
+          <span className="prov-v" style={{textTransform:'uppercase',fontWeight:700,
+            color:p.conf==='confirmed'?'#4ade80':p.conf==='inferred'?'#fbbf24':'#c084fc'}}>{p.conf}</span>
+          <span className="prov-k">Last Updated</span>
+          <span className="prov-v">{p.updated}</span>
+        </div>
+        <div className="prov-code">Parameters: {p.params}</div>
+      </div>
+    </div>
+  );
+}
+
+
+function ProvenanceTab() {
+  const rows=[
+    {leg:'L1 War/Energy',type:'observed',source:'PGSA Ops, MARAD 2026-020, AIS data',file:'state_vector_compute.py',updated:'Jun 8 2026',conf:'confirmed'},
+    {leg:'L2 Petrodollar',type:'derived',source:'US TIC H.4.1 Mar 2026, BOJ/MoF weekly',file:'state_vector_compute.py',updated:'Mar 31 2026',conf:'confirmed'},
+    {leg:'L3 Priv Credit',type:'observed',source:'Apollo LP letter, Barings redemption, Dimon Apr 6',file:'state_vector_compute.py',updated:'Apr 6 2026',conf:'confirmed'},
+    {leg:'L4 Settlement',type:'derived',source:'GENIUS Act floor status, Tether attestation, BIS',file:'state_vector_compute.py',updated:'Jun 5 2026',conf:'inferred'},
+    {leg:'L5 Food/Fert',type:'observed',source:'QAFCO notice, Kuwait FM, Bahrain FM',file:'state_vector_compute.py',updated:'Jun 1 2026',conf:'confirmed'},
+    {leg:'L6 Munitions',type:'derived',source:'$200B supplemental, NATO stockpile, Raytheon Q1',file:'state_vector_compute.py',updated:'May 15 2026',conf:'inferred'},
+    {leg:'L7 Semicon',type:'inferred',source:'TSMC implied index, CHIPS Act tracker, BIS entity list',file:'state_vector_compute.py',updated:'Jun 1 2026',conf:'inferred'},
+    {leg:'L8 Maritime',type:'observed',source:'AIS data, Houthi Jun 8 declaration, MARAD, war risk',file:'state_vector_compute.py',updated:'Jun 8 2026',conf:'confirmed'},
+    {leg:'L9 AI/Labor',type:'inferred',source:'BLS, LMM adoption, UAW/Teamsters Q2 watch',file:'state_vector_compute.py',updated:'Jun 1 2026',conf:'inferred'},
+    {leg:'L-cross JPY',type:'derived',source:'BOJ schedule, USD/JPY spot, CFTC COT, BIS flows',file:'state_vector_compute.py',updated:'Jun 8 2026',conf:'confirmed'},
+    {leg:'Composite 91%',type:'derived',source:'Weighted harmonic mean of all legs',file:'state_vector_compute.py',updated:'Jun 8 2026',conf:'derived'},
+    {leg:'Flash Crash %',type:'simulated',source:'Monte Carlo engine output (emergent)',file:'gods_eye_engine.py',updated:'Each run',conf:'model output'},
+    {leg:'Regime Labels',type:'simulated',source:'GMM EM algorithm on simulation final states',file:'gods_eye_engine.py',updated:'Each run',conf:'model output'},
+    {leg:'Scenario Probs',type:'simulated',source:'Agent-based rule engine, Bayesian update per event',file:'gods_eye_engine.py',updated:'Each run',conf:'model output'},
+    {leg:'Actor Registry',type:'observed',source:'Open-source intelligence, stated positions, public filings',file:'manually curated',updated:'Jun 8 2026',conf:'confirmed/inferred'},
+    {leg:'Carry Monitor',type:'observed',source:'USD/JPY spot, BOJ JGB auction results, BIS quarterly',file:'eia_spr_pull.py',updated:'Jun 8 2026',conf:'confirmed'},
+  ];
+  const TC={observed:'btype-obs',derived:'btype-der',inferred:'btype-der',simulated:'btype-sim'};
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:12}}>
+      <div className="card">
+        <div className="ctitle"><span className="dot"/>Data Type Convention</div>
+        <div style={{display:'flex',gap:16,flexWrap:'wrap',padding:'4px 0'}}>
+          {[['observed','OBSERVED','btype-obs','Directly sourced from external data — not model-derived. Highest confidence.'],
+            ['derived','DERIVED','btype-der','Computed from observed inputs via a deterministic rule.'],
+            ['simulated','SIMULATED','btype-sim','Emergent output of Monte Carlo engine — probabilistic, not a forecast.']
+          ].map(function(item){
+            return <div key={item[0]} style={{display:'flex',alignItems:'center',gap:8}}>
+              <span className={'btype '+item[2]}>{item[1]}</span>
+              <span style={{fontSize:10,color:'#6b7280',maxWidth:280}}>{item[3]}</span>
+            </div>;
+          })}
+        </div>
+      </div>
+      <div className="card">
+        <div className="ctitle"><span className="dot dot-b"/>Source Registry</div>
+        <div style={{overflowX:'auto'}}>
+          <table className="src-table">
+            <thead><tr><th>Metric</th><th>Type</th><th>Primary Source</th><th>Code File</th><th>Updated</th><th>Confidence</th></tr></thead>
+            <tbody>
+              {rows.map(function(r){
+                const tc=TC[r.type]||'btype-der';
+                return <tr key={r.leg}>
+                  <td>{r.leg}</td>
+                  <td><span className={'btype '+tc}>{r.type.toUpperCase()}</span></td>
+                  <td style={{maxWidth:240}}>{r.source}</td>
+                  <td style={{fontFamily:'monospace',fontSize:9,color:'#60a5fa'}}>{r.file}</td>
+                  <td style={{whiteSpace:'nowrap'}}>{r.updated}</td>
+                  <td style={{color:r.conf==='confirmed'?'#4ade80':r.conf==='inferred'?'#fbbf24':'#c084fc',textTransform:'uppercase',fontSize:9,fontWeight:700}}>{r.conf}</td>
+                </tr>;
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="card">
+        <div className="ctitle"><span className="dot dot-g"/>Data Pipeline</div>
+        <div style={{fontSize:10,color:'#6b7280',lineHeight:1.9,display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0 24px'}}>
+          <div>
+            <div style={{color:'#9ca3af',fontWeight:700,fontSize:9,letterSpacing:'.1em',marginBottom:6,textTransform:'uppercase'}}>Ingestion</div>
+            <div><span style={{color:'#60a5fa',fontFamily:'monospace',fontSize:9}}>eia_spr_pull.py</span> &mdash; EIA API, SPR weekly, USD/JPY, CFTC COT</div>
+            <div><span style={{color:'#60a5fa',fontFamily:'monospace',fontSize:9}}>gods_eye_rss.py</span> &mdash; Reuters, Axios, MARAD RSS feeds</div>
+            <div><span style={{color:'#60a5fa',fontFamily:'monospace',fontSize:9}}>spr_term_structure_model.py</span> &mdash; JGB, UST, BIS cross-border</div>
+            <div>Manual curation &mdash; actor postures, PGSA toll confirmations</div>
+          </div>
+          <div>
+            <div style={{color:'#9ca3af',fontWeight:700,fontSize:9,letterSpacing:'.1em',marginBottom:6,textTransform:'uppercase'}}>Compute</div>
+            <div><span style={{color:'#60a5fa',fontFamily:'monospace',fontSize:9}}>state_vector_compute.py</span> &mdash; 9-leg + cross-cut L(t) vector</div>
+            <div><span style={{color:'#60a5fa',fontFamily:'monospace',fontSize:9}}>gods_eye_engine.py</span> &mdash; simRun, GMM&#xB7;BIC selection</div>
+            <div><span style={{color:'#60a5fa',fontFamily:'monospace',fontSize:9}}>historical_backfill.py</span> &mdash; calibration from analogues</div>
+            <div>In-browser Babel/React &mdash; live Monte Carlo, no server round-trip</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CorrelationHeatmap({matrix}) {
   if(!matrix) return null;
   const legs=['l1','l2','l3','l4','l5','l6','l7','l8','l9'];
@@ -1132,39 +1497,37 @@ function CorrelationHeatmap({matrix}) {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+
 const SCEN_COLORS=['#ef4444','#f97316','#22c55e','#a855f7','#ec4899'];
 const SCEN_LABELS={A:'Strike / Zero Restraint',B:'Back Down / Duration',C:'Back Channel Deal',D:'IRGC Mines',E:'Dual Chokepoint'};
 const LEG_COLS=['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#f43f5e'];
 const LEG_LBL={l1:'War/Energy',l2:'Petrodollar',l3:'Priv Credit',l4:'Settlement',l5:'Food/Fert',l6:'Munitions',l7:'Semicon',l8:'Maritime',l9:'AI/Labor'};
 const CLUSTER_COLS=['#3b82f6','#ef4444','#22c55e','#f97316','#a855f7','#ec4899'];
 const EVT_LBL={BOJ_HIKE:'BOJ Hike 1.0%',FLASH_CRASH:'Flash Crash',BAB_MANDAB:'Bab al-Mandab',IRGC_MINES:'IRGC Mine Deploy',ISRAEL:'Israel Unilateral',CEASEFIRE:'Ceasefire Signal',CASCADE:'Credit Cascade',TETHER:'Tether De-peg',SPR_FLOOR:'SPR Heel Floor',GENIUS:'GENIUS Act Signed',SAUDI_PEG:'Saudi Peg Review',YANBU:'Yanbu Strike'};
+const TABS=[{id:'overview',label:'OVERVIEW'},{id:'simulation',label:'SIMULATION'},{id:'regimes',label:'REGIMES'},{id:'actors',label:'ACTORS'},{id:'provenance',label:'DATA PROVENANCE'}];
 
-// ─── App ──────────────────────────────────────────────────────────────────────
 function App() {
   const [res,setRes]=useState(null);
   const [running,setRunning]=useState(false);
   const [prog,setProg]=useState(0);
   const [nRuns,setNRuns]=useState(400);
-  const [params,setParams]=useState({bojP:0.85,houth:1.0,cSup:1.0});
+  const [params,setParams]=useState({bojP:0.85,houth:1.0,cSup:1.0,jgbRed:2.75,fxThresh:155,carryMult:1.0,sprTiming:4});
+  const [activeTab,setActiveTab]=useState('overview');
+  const [drawer,setDrawer]=useState(null);
+  const [actorSearch,setActorSearch]=useState('');
 
-  const run=useCallback(async()=>{
+  const run=useCallback(async function(){
     setRunning(true);setProg(0);setRes(null);
     const hists=[];
-    const CHUNK=40;
     for(let i=0;i<nRuns;i++){
-      const r=mkRng(42+i*7919);
-      hists.push(simRun(params,r));
-      if(i%CHUNK===CHUNK-1){
-        setProg((i+1)/nRuns);
-        await new Promise(resolve=>setTimeout(resolve,0));
-      }
+      hists.push(simRun(params,mkRng(42+i*7919)));
+      if(i%40===39){setProg((i+1)/nRuns);await new Promise(function(r){setTimeout(r,0);});}
     }
-    setProg(1);
-    setRes(aggregate(hists));
-    setRunning(false);
+    setProg(1);setRes(aggregate(hists));setRunning(false);
   },[nRuns,params]);
 
-  useEffect(()=>{run();},[]);
+  useEffect(function(){run();},[]);
 
   const crashP=res?res.crashWks.length/res.N:0;
   const maxCrash=res?Math.max(...res.crashDist,1):1;
@@ -1172,236 +1535,279 @@ function App() {
   return (
     <div className="app">
 
-      {/* Header */}
       <div className="hdr">
         <div>
-          <div className="hdr-title">⬡ God's Eye — Full Convergence Strategic Intelligence Engine v1.0</div>
-          <div className="hdr-sub">Agent-Based Simulation · Monte Carlo · GMM Regime Discovery (BIC) · Jun 8 – Dec 31, 2026</div>
+          <div className="hdr-title">&#x2B21; God&apos;s Eye &mdash; Full Convergence Strategic Intelligence Engine v1.1</div>
+          <div className="hdr-sub">Agent-Based Simulation &middot; Monte Carlo &middot; GMM Regime Discovery (BIC) &middot; Jun 8 &ndash; Dec 31, 2026</div>
         </div>
         <div className="badges">
-          <span className="badge b-red">COMPOSITE 91%</span>
+          <span className="badge b-red" style={{cursor:'pointer'}} onClick={function(){setDrawer('composite');}}>COMPOSITE 91% &#9432;</span>
           <span className="badge b-ora">CB-D/E</span>
-          {res&&<span className="badge b-red">FLASH CRASH {(crashP*100).toFixed(0)}%</span>}
+          {res&&<span className="badge b-red" style={{cursor:'pointer'}} onClick={function(){setDrawer('flashCrash');}}>FLASH CRASH {(crashP*100).toFixed(0)}% &#9432;</span>}
           <span className="badge b-yel">BOJ WINDOW JUN 16-17</span>
-          <span className="badge b-blu">LEG 8 → 89% (HOUTHI BLOCKADE)</span>
+          <span className="badge b-blu">LEG 8 89% HOUTHI</span>
           <span className="badge b-grn">SPR FLOOR ~JUL 1</span>
         </div>
         <button className="rbtn" onClick={run} disabled={running}>
-          {running?'RUNNING '+Math.round(prog*100)+'%':'▶ RUN '+nRuns+' SIMULATIONS'}
+          {running?'RUNNING '+Math.round(prog*100)+'%':'RUN '+nRuns+' SIMULATIONS'}
         </button>
       </div>
 
-      {/* Progress */}
       {running&&<div className="prog-wrap"><div className="prog-fill" style={{width:(prog*100)+'%'}}/></div>}
 
-      {/* Controls */}
-      <div className="ctrls">
-        <div className="ctrl">
-          <label>Simulations <span>{nRuns}</span></label>
-          <input type="range" min="100" max="1500" step="100" value={nRuns} onChange={e=>setNRuns(+e.target.value)}/>
-        </div>
-        <div className="ctrl">
-          <label>BOJ Hike Prob <span>{Math.round(params.bojP*100)}%</span></label>
-          <input type="range" min="0.2" max="1" step="0.05" value={params.bojP}
-            onChange={e=>setParams(p=>Object.assign({},p,{bojP:+e.target.value}))}/>
-        </div>
-        <div className="ctrl">
-          <label>Houthi Escalation <span>{params.houth.toFixed(1)}×</span></label>
-          <input type="range" min="0.2" max="3" step="0.1" value={params.houth}
-            onChange={e=>setParams(p=>Object.assign({},p,{houth:+e.target.value}))}/>
-        </div>
-        <div className="ctrl">
-          <label>Ceasefire Suppression <span>{params.cSup.toFixed(1)}×</span></label>
-          <input type="range" min="0.1" max="2" step="0.1" value={params.cSup}
-            onChange={e=>setParams(p=>Object.assign({},p,{cSup:+e.target.value}))}/>
-        </div>
+      <div className="tab-bar">
+        {TABS.map(function(t){
+          return <button key={t.id} className={'tab-btn'+(activeTab===t.id?' tab-active':'')}
+            onClick={function(){setActiveTab(t.id);}}>{t.label}</button>;
+        })}
       </div>
 
-      {!res&&!running&&<div style={{textAlign:'center',padding:'60px',color:'#374151'}}>Initializing...</div>}
+      {activeTab==='overview'&&(
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:8}}>
+            {[{k:'L1 War/Energy',v:'0.99',type:'observed',id:'l1',col:'#ef4444'},
+              {k:'L2 Petrodollar',v:'0.89',type:'derived',id:'l2',col:'#f97316'},
+              {k:'L8 Maritime',v:'0.89',type:'observed',id:'l8',col:'#ec4899'},
+              {k:'L5 Food/Fert',v:'0.83',type:'observed',id:'l5',col:'#eab308'},
+              {k:'L3 Priv Credit',v:'0.67',type:'observed',id:'l3',col:'#f97316'},
+              {k:'JPY Cross-Cut',v:'1.00',type:'derived',id:'l_cross',col:'#c084fc'},
+              {k:'Composite',v:'91%',type:'derived',id:'composite',col:'#ef4444'},
+              {k:'Flash Crash',v:res?(crashP*100).toFixed(0)+'%':'--',type:'simulated',id:'flashCrash',col:'#ef4444'},
+            ].map(function(m){
+              const TC={observed:'btype-obs',derived:'btype-der',simulated:'btype-sim'};
+              const tc=TC[m.type]||'btype-der';
+              return <div key={m.k} style={{background:'#0d1117',border:'1px solid #1e2938',borderRadius:7,padding:'10px 12px',cursor:'pointer'}}
+                onClick={function(){setDrawer(m.id);}}>
+                <div style={{fontSize:8,color:'#374151',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:4,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  {m.k}<span className={'btype '+tc}>{m.type.slice(0,3).toUpperCase()}</span>
+                </div>
+                <div style={{fontSize:22,fontWeight:700,color:m.col,lineHeight:1.1}}>{m.v}</div>
+                <div style={{fontSize:8,color:'#1e2938',marginTop:3}}>tap to inspect &#9432;</div>
+              </div>;
+            })}
+          </div>
+          <StateVectorPanel onInspect={setDrawer}/>
+          <div className="card">
+            <div className="ctitle"><span className="dot dot-g"/>Confirmed Observed Signals &mdash; Jun 8 2026
+              <span className="btype btype-obs" style={{marginLeft:'auto'}}>OBSERVED</span>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+              {[['PGSA Toll &mdash; Active','Hormuz 14.5mb/d tolled &middot; civilian FM separate from IRGC mandate'],
+                ['Houthi Blockade &mdash; Declared','Jun 8 official declaration &middot; Maersk reversed &middot; MARAD advisory active'],
+                ['BOJ Window &mdash; Jun 16-17','USD/JPY 159 &middot; 288bp spread &middot; $4-20T carry at risk &middot; next meeting'],
+                ['TIC Official Selling','Mar 2026: -$37.9B net &middot; Japan reversed +$113B 12-month accumulation'],
+                ['SPR Floor &mdash; ~Jul 1','Strategic reserve heel approaching &middot; removes energy intervention capacity'],
+                ['Apollo/Barings Gating','Apollo 45c &middot; Barings 44.3% &middot; Leg 3 at 67% private credit stress'],
+                ['QAFCO/Kuwait/Bahrain FM','Ras Laffan offline &middot; trains 4+6 &middot; fertilizer cascade in progress'],
+                ['India 2-Tanker Passage','IRGC-permitted Hormuz confirmed &middot; non-aligned energy architecture'],
+              ].map(function(s){
+                return <div key={s[0]} style={{background:'#070b10',border:'1px solid rgba(34,197,94,.12)',borderLeft:'2px solid rgba(34,197,94,.4)',borderRadius:5,padding:'7px 10px'}}>
+                  <div style={{fontSize:10,fontWeight:700,color:'#4ade80',marginBottom:2}} dangerouslySetInnerHTML={{__html:s[0]}}/>
+                  <div style={{fontSize:9,color:'#4b5563',lineHeight:1.5}} dangerouslySetInnerHTML={{__html:s[1]}}/>
+                </div>;
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
-      {res&&(
-        <React.Fragment>
+      {activeTab==='simulation'&&(
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <div className="ctrls">
+            <div className="ctrl"><label>Simulations <span>{nRuns}</span></label>
+              <input type="range" min="100" max="1500" step="100" value={nRuns} onChange={function(e){setNRuns(+e.target.value);}}/></div>
+            <div className="ctrl"><label>BOJ Hike Prob <span>{Math.round(params.bojP*100)}%</span></label>
+              <input type="range" min="0.2" max="1" step="0.05" value={params.bojP} onChange={function(e){setParams(function(p){return Object.assign({},p,{bojP:+e.target.value});});}}/></div>
+            <div className="ctrl"><label>Houthi Escalation <span>{params.houth.toFixed(1)}x</span></label>
+              <input type="range" min="0.2" max="3" step="0.1" value={params.houth} onChange={function(e){setParams(function(p){return Object.assign({},p,{houth:+e.target.value});});}}/></div>
+            <div className="ctrl"><label>Ceasefire Suppression <span>{params.cSup.toFixed(1)}x</span></label>
+              <input type="range" min="0.1" max="2" step="0.1" value={params.cSup} onChange={function(e){setParams(function(p){return Object.assign({},p,{cSup:+e.target.value});});}}/></div>
+            <div className="ctrl"><label>JGB Red Line (%) <span>{params.jgbRed.toFixed(2)}</span></label>
+              <input type="range" min="1.5" max="4.0" step="0.05" value={params.jgbRed} onChange={function(e){setParams(function(p){return Object.assign({},p,{jgbRed:+e.target.value});});}}/></div>
+            <div className="ctrl"><label>FX Defense Threshold <span>{params.fxThresh}</span></label>
+              <input type="range" min="145" max="170" step="1" value={params.fxThresh} onChange={function(e){setParams(function(p){return Object.assign({},p,{fxThresh:+e.target.value});});}}/></div>
+            <div className="ctrl"><label>Carry Unwind Mult <span>{params.carryMult.toFixed(1)}x</span></label>
+              <input type="range" min="0.5" max="3" step="0.1" value={params.carryMult} onChange={function(e){setParams(function(p){return Object.assign({},p,{carryMult:+e.target.value});});}}/></div>
+            <div className="ctrl"><label>SPR Floor Timing <span>W{params.sprTiming}</span></label>
+              <input type="range" min="1" max="8" step="1" value={params.sprTiming} onChange={function(e){setParams(function(p){return Object.assign({},p,{sprTiming:+e.target.value});});}}/></div>
+          </div>
+          {!res&&!running&&<div style={{textAlign:'center',padding:'40px',color:'#374151'}}>Initializing...</div>}
+          {res&&(
+            <React.Fragment>
+              <div className="g2">
+                <div className="card">
+                  <div className="ctitle"><span className="dot"/>Scenario Probability Timeline
+                    <span className="btype btype-sim" style={{marginLeft:'auto'}}>SIMULATED</span>
+                  </div>
+                  <SvgAreaChart data={res.tl} keys={['pA','pB','pC','pD','pE']} colors={SCEN_COLORS} height={180}/>
+                  <div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:8}}>
+                    {['A','B','C','D','E'].map(function(s,i){
+                      return <div key={s} style={{display:'flex',alignItems:'center',gap:4}}>
+                        <div style={{width:10,height:10,borderRadius:2,background:SCEN_COLORS[i]}}/>
+                        <span style={{fontSize:10,color:'#6b7280'}}>{s}: <b style={{color:'#e2e8f0'}}>{(res.fScen[s]*100).toFixed(1)}%</b></span>
+                      </div>;
+                    })}
+                  </div>
+                </div>
+                <div className="card">
+                  <div className="ctitle"><span className="dot dot-o"/>9-Leg Evolution
+                    <span className="btype btype-sim" style={{marginLeft:'auto'}}>SIMULATED</span>
+                  </div>
+                  <SvgLineChart data={res.tl} keys={['l1','l2','l3','l4','l5','l6','l7','l8','l9']}
+                    colors={LEG_COLS} height={180} domainMin={0.2} domainMax={1.0}/>
+                  <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>
+                    {['l1','l2','l3','l4','l5','l6','l7','l8','l9'].map(function(l,i){
+                      return <div key={l} style={{display:'flex',alignItems:'center',gap:3}}>
+                        <div style={{width:10,height:2,background:LEG_COLS[i]}}/>
+                        <span style={{fontSize:9,color:'#6b7280'}}>{LEG_LBL[l]}</span>
+                      </div>;
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className="g2">
+                <div className="card">
+                  <div className="ctitle"><span className="dot dot-b"/>Brent + VIX Trajectories
+                    <span className="btype btype-sim" style={{marginLeft:'auto'}}>SIMULATED</span>
+                  </div>
+                  <SvgLineChart data={res.tl} keys={['brent','vix']} colors={['#f97316','#ef4444']} height={150} domainMin={15} domainMax={210}/>
+                  <div style={{display:'flex',gap:12,marginTop:6}}>
+                    <div style={{display:'flex',alignItems:'center',gap:4}}><div style={{width:12,height:2,background:'#f97316'}}/><span style={{fontSize:9,color:'#6b7280'}}>Brent ($/bbl)</span></div>
+                    <div style={{display:'flex',alignItems:'center',gap:4}}><div style={{width:12,height:2,background:'#ef4444'}}/><span style={{fontSize:9,color:'#6b7280'}}>VIX</span></div>
+                  </div>
+                </div>
+                <div className="card">
+                  <div className="ctitle">
+                    <span className="dot"/>Flash Crash Timing
+                    <button className="info-btn" onClick={function(){setDrawer('flashCrash');}}>&#9432;</button>
+                    <span style={{marginLeft:'auto',fontSize:9,color:'#4b5563'}}>
+                      {res.crashWks.length>0?(res.crashWks.length/res.N*100).toFixed(0)+'% prob':'No events'}
+                    </span>
+                  </div>
+                  <div style={{display:'flex',gap:2,alignItems:'flex-end',height:90,marginBottom:8}}>
+                    {res.crashDist.map(function(v,w){
+                      return <div key={w} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',height:'100%',justifyContent:'flex-end'}}>
+                        <div style={{width:'100%',background:v>0?'#ef4444':'transparent',height:v>0?(v/maxCrash*85)+'%':'0',borderRadius:'2px 2px 0 0'}}/>
+                      </div>;
+                    })}
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'#374151'}}>
+                    <span>Wk 0 Jun 8</span><span>Wk 15 Sep 28</span><span>Wk 29 Dec 29</span>
+                  </div>
+                  {res.crashWks.length>0&&(
+                    <div style={{marginTop:8,padding:'6px 10px',background:'rgba(239,68,68,.07)',border:'1px solid rgba(239,68,68,.2)',borderRadius:5,fontSize:9,color:'#9ca3af'}}>
+                      Median crash week: {res.crashWks.sort(function(a,b){return a-b;})[Math.floor(res.crashWks.length/2)]}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <CarryTradeMonitor onInspect={setDrawer}/>
+              <ReproducibilityPanel params={params} nRuns={nRuns} res={res}/>
+            </React.Fragment>
+          )}
+        </div>
+      )}
 
-          {/* Row 1: Scenarios + PCA */}
+      {activeTab==='regimes'&&res&&(
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <div className="card">
+            <div className="ctitle"><span className="dot"/>Scenario Final Probabilities &mdash; {res.N} runs
+              <span className="btype btype-sim" style={{marginLeft:'auto'}}>SIMULATED</span>
+            </div>
+            {['A','B','C','D','E'].map(function(s,i){
+              const p=res.fScen[s];const ci=res.fCI[s];
+              return <div key={s} className="sbar-row">
+                <span className="sbar-lbl">{s}</span>
+                <span className="sbar-name">{SCEN_LABELS[s]}</span>
+                <div className="sbar-track" style={{position:'relative'}}>
+                  {ci&&<div style={{position:'absolute',top:0,bottom:0,left:(ci.lo*100)+'%',width:((ci.hi-ci.lo)*100)+'%',background:SCEN_COLORS[i],opacity:.18,borderRadius:3}}/>}
+                  <div className="sbar-fill" style={{width:(p*100)+'%',background:SCEN_COLORS[i]}}>
+                    <span className="sbar-pct">{(p*100).toFixed(1)}%</span>
+                  </div>
+                </div>
+                {ci&&<span className="ci-badge">[{(ci.lo*100).toFixed(0)}&ndash;{(ci.hi*100).toFixed(0)}%]</span>}
+              </div>;
+            })}
+          </div>
           <div className="g2">
             <div className="card">
-              <div className="ctitle"><span className="dot"/>Scenario Probability Distribution — {res.N} Monte Carlo Runs</div>
-              <SvgAreaChart data={res.tl} keys={['pA','pB','pC','pD','pE']} colors={SCEN_COLORS} height={200}/>
-              <div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:10}}>
-                {['A','B','C','D','E'].map((s,i)=>(
-                  <div key={s} style={{display:'flex',alignItems:'center',gap:4}}>
-                    <div style={{width:10,height:10,borderRadius:2,background:SCEN_COLORS[i]}}/>
-                    <span style={{fontSize:10,color:'#6b7280'}}>{s}: <b style={{color:'#e2e8f0'}}>{(res.fScen[s]*100).toFixed(1)}%</b></span>
-                  </div>
-                ))}
-              </div>
-              <div style={{marginTop:10}}>
-                {['A','B','C','D','E'].map(function(s,i){
-                  const p=res.fScen[s];
-                  const ci=res.fCI[s];
-                  return (
-                    <div key={s} className="sbar-row">
-                      <span className="sbar-lbl">{s}</span>
-                      <span className="sbar-name">{SCEN_LABELS[s]}</span>
-                      <div className="sbar-track" style={{position:'relative'}}>
-                        {/* CI band */}
-                        {ci&&<div style={{position:'absolute',top:0,bottom:0,left:(ci.lo*100)+'%',width:((ci.hi-ci.lo)*100)+'%',background:SCEN_COLORS[i],opacity:.18,borderRadius:3}}/>}
-                        <div className="sbar-fill" style={{width:(p*100)+'%',background:SCEN_COLORS[i]}}>
-                          <span className="sbar-pct">{(p*100).toFixed(1)}%</span>
-                        </div>
-                      </div>
-                      {ci&&<span style={{fontSize:9,color:'#374151',flexShrink:0,width:80}}>[{(ci.lo*100).toFixed(0)}–{(ci.hi*100).toFixed(0)}%]</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="card">
               <div className="ctitle">
-                <span className="dot dot-b"/>
-                GMM Regime Discovery — K={res.bestK} (BIC-Selected, Not Pre-Built)
-                <span style={{marginLeft:'auto',fontSize:9,color:'#374151'}}>
-                  BIC: {Object.entries(res.bicMap||{}).map(function(e){return 'k'+e[0]+'='+e[1];}).join(' · ')}
-                  {' · '}sil={res.sil!=null?(+res.sil).toFixed(3):'—'}
-                  {res.uncertainty!=null&&(' · unc='+res.uncertainty.toFixed(3))}
-                </span>
+                <span className="dot dot-b"/>GMM Regime Discovery &mdash; K={res.bestK} (BIC-Selected)
+                <span className="btype btype-sim" style={{marginLeft:'auto'}}>SIMULATED</span>
+              </div>
+              <div style={{fontSize:9,color:'#374151',marginBottom:4}}>
+                BIC: {Object.entries(res.bicMap||{}).map(function(e){return 'k'+e[0]+'='+e[1];}).join(' · ')} &middot; sil={res.sil!=null?(+res.sil).toFixed(3):'&mdash;'}
               </div>
               <PcaScatter coords={res.pcaCoords} k={res.bestK} ellipses={res.ellipses}/>
-              <div style={{fontSize:9,color:'#374151',marginTop:4,marginBottom:8}}>
-                PCA 2D projection · GMM soft assignments · ellipses = 2σ component boundaries · BIC selects K
-              </div>
+              <div style={{fontSize:9,color:'#374151',marginTop:4,marginBottom:8}}>PCA 2D projection &middot; GMM soft assignments &middot; ellipses = 2&sigma; &middot; BIC selects K</div>
               <div className="rcards">
                 {Object.entries(res.regimes).map(function(entry){
-                  const ci=entry[0];const r=entry[1];
-                  const col=CLUSTER_COLS[+ci%CLUSTER_COLS.length];
-                  const exp=REGIME_EXPLANATIONS[r.label]||'Emergent regime identified by GMM (soft probabilistic clustering) on simulation run feature vectors. BIC criterion selected K.';
-                  return (
-                    <div key={ci} className="rcard">
-                      <div className="rtitle" style={{color:col}}>
-                        Regime {+ci+1} — {(r.pct*100).toFixed(0)}% of runs
-                        <span style={{fontSize:8,color:'#374151',marginLeft:6}}>w={r.gmmWeight!=null?r.gmmWeight.toFixed(2):'?'}</span>
-                      </div>
-                      <div style={{fontSize:9,color:'#6b7280',fontStyle:'italic',marginBottom:4}}>{r.label}</div>
-                      <div className="rstat">Brent ${r.avgBrent.toFixed(0)} · VIX {r.avgVix.toFixed(0)} · Yield {r.avgYld.toFixed(2)}%</div>
-                      <div className="rtags">
-                        {r.flashR>0.4&&<span className="rtag rtag-hot">Flash crash {(r.flashR*100).toFixed(0)}%</span>}
-                        {r.babR>0.25&&<span className="rtag rtag-hot">Bab {(r.babR*100).toFixed(0)}%</span>}
-                        {r.mineR>0.25&&<span className="rtag">Mines {(r.mineR*100).toFixed(0)}%</span>}
-                        {r.cfR>0.45&&<span className="rtag">Ceasefire {(r.cfR*100).toFixed(0)}%</span>}
-                        {r.casR>0.35&&<span className="rtag rtag-hot">Cascade {(r.casR*100).toFixed(0)}%</span>}
-                        {r.sauR>0.20&&<span className="rtag">Saudi peg {(r.sauR*100).toFixed(0)}%</span>}
-                        {r.meanResp!=null&&<span className="rtag" style={{opacity:.7}}>responsibility {r.meanResp.toFixed(2)}</span>}
-                      </div>
-                      <div className="regime-exp">{exp}</div>
+                  const ci=entry[0],r=entry[1],col=CLUSTER_COLS[+ci%CLUSTER_COLS.length];
+                  const exp=REGIME_EXPLANATIONS[r.label]||'Emergent regime identified by GMM clustering on simulation final states.';
+                  return <div key={ci} className="rcard">
+                    <div className="rtitle" style={{color:col}}>Regime {+ci+1} &mdash; {(r.pct*100).toFixed(0)}%
+                      <span style={{fontSize:8,color:'#374151',marginLeft:6}}>w={r.gmmWeight!=null?r.gmmWeight.toFixed(2):'?'}</span>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: Legs + Events */}
-          <div className="g2">
-            <div className="card">
-              <div className="ctitle"><span className="dot dot-o"/>9-Leg Convergence Score Evolution</div>
-              <SvgLineChart data={res.tl} keys={['l1','l2','l3','l4','l5','l6','l7','l8','l9']}
-                colors={LEG_COLS} height={170} domainMin={0.2} domainMax={1.0}/>
-              <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>
-                {['l1','l2','l3','l4','l5','l6','l7','l8','l9'].map(function(l,i){
-                  return (
-                    <div key={l} style={{display:'flex',alignItems:'center',gap:3}}>
-                      <div style={{width:10,height:2,background:LEG_COLS[i]}}/>
-                      <span style={{fontSize:9,color:'#6b7280'}}>{LEG_LBL[l]}</span>
+                    <div style={{fontSize:9,color:'#6b7280',fontStyle:'italic',marginBottom:4}}>{r.label}</div>
+                    <div className="rstat">Brent ${r.avgBrent.toFixed(0)} &middot; VIX {r.avgVix.toFixed(0)} &middot; Yield {r.avgYld.toFixed(2)}%</div>
+                    <div className="rtags">
+                      {r.flashR>0.4&&<span className="rtag rtag-hot">Flash crash {(r.flashR*100).toFixed(0)}%</span>}
+                      {r.babR>0.25&&<span className="rtag rtag-hot">Bab {(r.babR*100).toFixed(0)}%</span>}
+                      {r.mineR>0.25&&<span className="rtag">Mines {(r.mineR*100).toFixed(0)}%</span>}
+                      {r.cfR>0.45&&<span className="rtag">Ceasefire {(r.cfR*100).toFixed(0)}%</span>}
+                      {r.casR>0.35&&<span className="rtag rtag-hot">Cascade {(r.casR*100).toFixed(0)}%</span>}
+                      {r.sauR>0.20&&<span className="rtag">Saudi peg {(r.sauR*100).toFixed(0)}%</span>}
                     </div>
-                  );
+                    <div className="regime-exp">{exp}</div>
+                  </div>;
                 })}
               </div>
             </div>
             <div className="card">
-              <div className="ctitle"><span className="dot dot-p"/>Event Frequency — {res.N} Simulations</div>
+              <div className="ctitle"><span className="dot dot-p"/>Event Frequency &mdash; {res.N} Simulations
+                <span className="btype btype-sim" style={{marginLeft:'auto'}}>SIMULATED</span>
+              </div>
               <div className="evt-list">
                 {Object.entries(res.evtF).sort(function(a,b){return b[1]-a[1];}).map(function(entry){
-                  const evt=entry[0];const f=entry[1];
-                  const col=f>0.8?'#ef4444':f>0.5?'#f97316':f>0.25?'#eab308':'#3b82f6';
-                  return (
-                    <div key={evt} className="ebar-row">
-                      <div className="ebar-name">{EVT_LBL[evt]||evt}</div>
-                      <div className="ebar-track">
-                        <div className="ebar-fill" style={{width:(f*100)+'%',background:col,opacity:.75}}/>
-                      </div>
-                      <div className="ebar-pct">{(f*100).toFixed(0)}%</div>
-                    </div>
-                  );
+                  const evt=entry[0],f=entry[1],col=f>0.8?'#ef4444':f>0.5?'#f97316':f>0.25?'#eab308':'#3b82f6';
+                  return <div key={evt} className="ebar-row">
+                    <div className="ebar-name">{EVT_LBL[evt]||evt}</div>
+                    <div className="ebar-track"><div className="ebar-fill" style={{width:(f*100)+'%',background:col,opacity:.75}}/></div>
+                    <div className="ebar-pct">{(f*100).toFixed(0)}%</div>
+                  </div>;
                 })}
               </div>
             </div>
           </div>
-
-          {/* Row 3: Macro + Flash crash timing */}
-          <div className="g2">
-            <div className="card">
-              <div className="ctitle"><span className="dot dot-b"/>Mean Brent + VIX Trajectories</div>
-              <SvgLineChart data={res.tl} keys={['brent','vix']}
-                colors={['#f97316','#ef4444']} height={150} domainMin={15} domainMax={210}/>
-              <div style={{display:'flex',gap:12,marginTop:6}}>
-                <div style={{display:'flex',alignItems:'center',gap:4}}><div style={{width:12,height:2,background:'#f97316'}}/><span style={{fontSize:10,color:'#6b7280'}}>Brent ($/bbl)</span></div>
-                <div style={{display:'flex',alignItems:'center',gap:4}}><div style={{width:12,height:2,background:'#ef4444'}}/><span style={{fontSize:10,color:'#6b7280'}}>VIX</span></div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="ctitle">
-                <span className="dot"/>Flash Crash Timing Distribution
-                <span style={{marginLeft:'auto',fontSize:9,color:'#4b5563'}}>
-                  {res.crashWks.length>0
-                    ?((res.crashWks.length/res.N*100).toFixed(0))+'% probability · mean wk '+(res.crashWks.reduce(function(a,b){return a+b;},0)/res.crashWks.length).toFixed(1)
-                    :'No flash crash events'}
-                </span>
-              </div>
-              <div style={{display:'flex',gap:2,alignItems:'flex-end',height:90,marginBottom:8}}>
-                {res.crashDist.map(function(v,w){
-                  return (
-                    <div key={w} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',height:'100%',justifyContent:'flex-end'}}>
-                      <div style={{width:'100%',background:v>0?'#ef4444':'transparent',height:v>0?(v/maxCrash*85)+'%':'0',borderRadius:'2px 2px 0 0',opacity:.8,minHeight:v>0?2:0}}/>
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'#374151'}}>
-                <span>Wk 0 Jun 8</span><span>Wk 15 Sep 28</span><span>Wk 29 Dec 29</span>
-              </div>
-              {res.crashWks.length>0&&(
-                <div style={{marginTop:8,padding:'8px 10px',background:'rgba(239,68,68,.07)',border:'1px solid rgba(239,68,68,.2)',borderRadius:4,fontSize:10,color:'#fca5a5'}}>
-                  BOJ hike → carry unwind → flash crash chain · median week {res.crashWks.sort(function(a,b){return a-b;})[Math.floor(res.crashWks.length/2)]}
-                  {' '}(~{['Jun','Jul','Aug','Sep'][Math.floor((res.crashWks.sort(function(a,b){return a-b;})[Math.floor(res.crashWks.length/2)]*7)/90)||0]} 2026)
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* L(t) State Vector Panel */}
-          <StateVectorPanel/>
-
-          {/* Correlation heatmap */}
           <CorrelationHeatmap matrix={res.corrMatrix}/>
-
-          {/* Actor Registry */}
-          <ActorRegistry/>
-
-          <div className="foot">
-            God's Eye v1.0 · {res.N.toLocaleString()} Monte Carlo runs · {res.bestK} emergent regimes discovered via GMM (BIC model selection) ·
-            BIC by K: {res.bicMap?Object.entries(res.bicMap).map(function(e){return 'k'+e[0]+'='+e[1];}).join(', '):'—'} ·
-            Regimes are emergent from simulation data — not pre-built scenario taxonomy
-          </div>
-
-        </React.Fragment>
+        </div>
       )}
+      {activeTab==='regimes'&&!res&&<div style={{textAlign:'center',padding:'60px',color:'#374151'}}>Run simulation first.</div>}
+
+      {activeTab==='actors'&&(
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <div className="card" style={{padding:'10px 16px'}}>
+            <input className="actor-search" placeholder="Search actors, signals, roles, constraints..."
+              value={actorSearch} onChange={function(e){setActorSearch(e.target.value);}}/>
+          </div>
+          <ActorRegistry search={actorSearch}/>
+        </div>
+      )}
+
+      {activeTab==='provenance'&&<ProvenanceTab/>}
+
+      {drawer&&<ProvenanceDrawer metricId={drawer} onClose={function(){setDrawer(null);}}/>}
+
+      <div className="foot">
+        God&apos;s Eye v1.1 &middot; {res?res.N.toLocaleString():'&mdash;'} Monte Carlo runs &middot; {res?res.bestK:'&mdash;'} emergent regimes via GMM (BIC) &middot; Jun 8 2026
+      </div>
     </div>
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+const root=ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(App));
+
 </script>
 </body>
 </html>
