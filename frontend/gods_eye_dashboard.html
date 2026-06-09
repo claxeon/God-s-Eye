@@ -624,7 +624,6 @@ function aggregate(hists) {
   }
 
   // Leg score correlation matrix (Pearson on final states)
-  const LEGS=['l1','l2','l3','l4','l5','l6','l7','l8','l9'];
   const finalLegVals={};
   for(const l of LEGS) finalLegVals[l]=hists.map(function(h){return h[h.length-1][l]||0;});
   const legMeans={};
