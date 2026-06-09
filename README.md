@@ -1,120 +1,69 @@
-# God's Eye
+# God's Eye — Strategic Intelligence Engine
 
-**Full-Convergence Strategic Intelligence System**  
-9-Leg Geopolitical + Financial Risk Framework · June 2026
-
----
+> Full Convergence Strategic Intelligence — 9-Leg Convergence Model  
+> Horizon: June 8 – December 31, 2026
 
 ## Overview
 
-God's Eye is an agent-based Monte Carlo simulation and intelligence aggregation system built to model the probability distribution of geopolitical scenarios arising from the 2026 Persian Gulf conflict, with a specific focus on:
+God's Eye is an agent-based Monte Carlo simulation framework for modelling the 2026 Persian Gulf conflict scenario and its second-order effects on energy markets, FX (USD/JPY carry trade unwind), Japanese Government Bonds, U.S. Treasuries, and global credit.
 
-- **Hormuz / Bab al-Mandab chokepoint closure probability and duration**
-- **BoJ rate hike sequencing and carry trade unwind mechanics**
-- **USD/JPY and JGB yield co-movement under reserve drawdown**
-- **Japan SPR depletion and repatriation pressure on US Treasuries**
-- **GCC petrodollar strain and Saudi peg stress**
+The engine runs 13 primary actor nodes + 7 subgroups through a stochastic weekly time-step simulation, outputting scenario probability distributions (A/B/C/D/E) with confidence bands.
 
----
-
-## Repository Structure
+## Architecture
 
 ```
 god-s-eye/
-│
-├── engine/                         # Core simulation logic
-│   ├── gods_eye_engine.py          # Agent-based Monte Carlo simulation engine (9-leg, 13 actors)
-│   ├── gods_eye_rss.py             # RSS intelligence brief generator (Obsidian vault output)
-│   ├── state_vector_compute.py     # State vector and leg score computation
-│   ├── eia_spr_pull.py             # EIA SPR data pull and analysis
-│   └── spr_term_structure_model.py # SPR term structure and crude futures model
-│
-├── frontend/                       # Interactive dashboards
-│   ├── gods_eye_dashboard.html     # Main God's Eye scenario dashboard (static, open in browser)
-│   └── japan-monte-carlo-dashboard.html  # Japan BoJ / USD-JPY / JGB Monte Carlo overlay
-│
-├── data/                           # Monte Carlo output CSVs
-│   ├── hormuz_monte_carlo_monthly.csv      # Base Hormuz closure model (monthly medians)
-│   ├── hormuz_reopening_distribution.csv   # Reopening probability distribution
-│   ├── japan_hormuz_mc_refined.csv         # Refined Japan-only model (monthly medians)
-│   ├── japan_hormuz_reopen_refined.csv     # Refined model reopening distribution
-│   ├── japan_hormuz_mc_capped1.csv         # BoJ-capped-at-1.00% scenario (monthly medians)
-│   └── japan_hormuz_reopen_capped1.csv     # Capped model reopening distribution
-│
-└── docs/                           # Framework documentation
-    ├── hormuz_monte_carlo_report.md         # Base model assumptions and initial conditions
-    ├── japan_hormuz_refined_notes.md        # Refined model parameter notes
-    ├── japan_hormuz_capped1_notes.md        # Capped BoJ scenario notes
-    ├── Actors-Full-Registry.md              # Full 13-actor registry with utility functions
-    ├── Scenarios-Five-Primary-Branch-Tree.md # A/B/C/D/E scenario branch tree
-    └── Qatar.md                             # Qatar actor deep-dive (Ras Laffan, LNG, mediation role)
+├── src/
+│   ├── gods_eye_engine.py          # Core agent-based simulation engine (Monte Carlo)
+│   ├── gods_eye_rss.py             # Live intelligence feed aggregator (RSS/web)
+│   ├── eia_spr_pull.py             # EIA SPR + crude inventory data pull
+│   ├── spr_term_structure_model.py # SPR depletion + term structure model
+│   └── state_vector_compute.py     # World state vector computation layer
+├── frontend/
+│   └── gods_eye_dashboard.html     # Interactive browser dashboard (Chart.js)
+├── docs/
+│   ├── Actors-Full-Registry.md         # All 13 primary actors + 7 subgroups
+│   ├── Scenarios-Five-Primary-Branch-Tree.md  # A/B/C/D/E scenario definitions
+│   └── Qatar.md                        # Qatar node deep-dive
+└── requirements.txt
 ```
 
----
+## Key Scenarios
 
-## Five Primary Scenarios
-
-| ID | Name | Starting Probability |
+| Scenario | Label | Description |
 |---|---|---|
-| **A** | Strike / Zero Restraint | 12% |
-| **B** | Back Down / Duration (base case) | 38% |
-| **C** | Back Channel Deal | 28% |
-| **D** | IRGC Mines / Physical Hormuz Closure | 15% |
-| **E** | Dual Chokepoint (Hormuz + Yanbu) | 7% |
+| A | Full Escalation | Strait closure 90d+, BoJ forced to 1.25–1.50%, reverse carry unwind |
+| B | Managed Conflict | Partial disruption, BoJ hikes to 1.00%, Treasury drip sell |
+| C | Ceasefire + Reopen | Negotiated resolution, BoJ pauses, yen stabilises |
+| D | Israel Unilateral | Escalation without US backing, oil spike then collapse |
+| E | Black Swan | Tether de-peg + credit cascade + FX intervention failure |
 
----
+## FX / BoJ / Treasury Overlay
 
-## Key Initial Conditions (June 8, 2026)
+The simulation tracks USD/JPY, Japan 10Y yield, and US-JP spread weekly.  
+Key trigger levels:
+- **USD/JPY 160**: BoJ verbal intervention threshold
+- **USD/JPY 165**: Direct FX defence + Treasury repatriation begins
+- **JGB 10Y > 2.75%**: BoJ YCC ceiling stress
+- **US-JP spread < 150bp**: Carry trade significantly reduced
 
-| Variable | Value |
-|---|---|
-| USD/JPY | 160.14 |
-| Japan 10Y yield | 2.72% |
-| US 10Y yield | 4.60% |
-| US–Japan 10Y spread | 1.87% |
-| Brent crude | ~$118/bbl |
-| BoJ policy rate | 0.75% |
-| Japan total oil reserves | 214 days |
-| Japan national SPR | 131 days |
-| US SPR | ~357 MMbbl |
-| Hormuz status | TOLL (PGSA selective access) |
-| Bab al-Mandab | Declared Israeli-ship ban (Jun 8 confirmed) |
+## Running the Engine
 
----
-
-## Usage
-
-### Run the simulation engine
 ```bash
-pip install numpy   # feedparser also needed for RSS module
-python3 engine/gods_eye_engine.py
-python3 engine/gods_eye_engine.py --simulations 2000 --output results.json
-python3 engine/gods_eye_engine.py --fire BOJ_HIKE --fire BAB_AL_MANDAB
+pip install -r requirements.txt
+python src/gods_eye_engine.py
 ```
 
-### Run the RSS intelligence brief generator
+Open `frontend/gods_eye_dashboard.html` in any browser — no server needed.
+
+## Intelligence Feed
+
 ```bash
-python3 engine/gods_eye_rss.py
-# Outputs: Intelligence Briefs/Intelligence Brief - YYYY-MM-DD.md
+python src/gods_eye_rss.py   # Pulls live RSS feeds and scores them against scenario legs
 ```
 
-### Open dashboards
-Open `frontend/gods_eye_dashboard.html` or `frontend/japan-monte-carlo-dashboard.html` directly in your browser. No build step required.
+## Data Feeds
 
----
-
-## 9 Convergence Legs
-
-1. **War / Energy Chokepoints** — Hormuz, Bab al-Mandab, South Pars, Ras Laffan
-2. **GCC / Petrodollar Strain** — Saudi peg, TIC data, de-dollarization
-3. **Private Credit / NBFI** — Fund gates, NAV discounts, credit cascade
-4. **Rails / XRP / Stablecoin** — GENIUS Act, RLUSD, Tether systemic risk
-5. **Food / Fertilizer** — QAFCO, urea, Phase 5 famine threshold
-6. **Munitions / MIC** — Stockpile depletion, defense production rates
-7. **Semiconductor / Taiwan** — TSMC contingency, PLA naval posture
-8. **Maritime / Insurance** — War risk premiums, Lloyd's triggers, AIS data
-9. **AI / Labor** — Sahm Rule, hyperscaler capex, data center power demand
-
----
-
-*Last updated: June 8, 2026*
+```bash
+python src/eia_spr_pull.py   # EIA API → SPR levels, crude draws, inventory
+```
