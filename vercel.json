@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "outputDirectory": ".",
+  "builds": [{ "src": "gods_eye_dashboard.html", "use": "@vercel/static" }],
+  "routes": [
+    { "src": "/", "dest": "/gods_eye_dashboard.html" },
+    { "src": "/(.*)", "dest": "/gods_eye_dashboard.html" }
+  ]
+}

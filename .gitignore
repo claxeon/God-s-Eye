@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.vercel/
+youtube/token.json
+youtube/output/
+*.env
