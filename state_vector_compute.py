@@ -75,6 +75,11 @@ MANUAL_STATE = {
 
     # Mojtaba Khamenei Supreme Leader (confirmed)
     "iran_succession": 1.0,
+
+    # Ceasefire escalation: 0=full ceasefire holding, 1.0=active military operations
+    # S(t) suppression component — falls when peace holds, rises on escalation
+    # Historical baseline: 2015-2025 Middle East conflict at varying levels, avg ~0.35
+    "ceasefire_escalation": 0.60,   # Jun 30: nominal MoU but Israel still hitting Lebanon, Hormuz PGSA
 }
 
 # ── Logistic / sigmoid ────────────────────────────────────────────────────────
@@ -108,11 +113,17 @@ def eia_latest(series_id: str) -> Optional[float]:
 
 # ── FRED fetch ────────────────────────────────────────────────────────────────
 def fred_latest(series_id: str) -> Optional[float]:
+    """Fetch latest FRED value via curl subprocess (more reliable than urllib in this env)."""
+    import subprocess
     try:
         url = FRED_BASE + series_id
-        with urllib.request.urlopen(url, timeout=10) as r:
-            lines = r.read().decode().strip().split("\n")
-        # Last non-empty data line
+        r = subprocess.run(
+            ["curl", "-s", "--max-time", "20", url],
+            capture_output=True, text=True
+        )
+        if r.returncode != 0 or not r.stdout.strip():
+            raise RuntimeError(f"curl failed: {r.stderr[:100]}")
+        lines = r.stdout.strip().split("\n")
         for line in reversed(lines[1:]):
             parts = line.split(",")
             if len(parts) == 2 and parts[1].strip() not in ("", "."):
@@ -125,42 +136,47 @@ def fred_latest(series_id: str) -> Optional[float]:
 # These are calibrated from 2015-2026 historical data
 # Initially approximate — will be updated from Supabase history once populated
 CALIB = {
-    # L1 components
-    "brent_backwardation": {"mu": 0.0,   "sigma": 3.0,   "w": 0.20},  # $/bbl 1-6M spread
-    "global_draw_mbd":     {"mu": 0.5,   "sigma": 1.5,   "w": 0.25},  # mb/d draw rate
-    "hormuz_status":       {"mu": 0.05,  "sigma": 0.15,  "w": 0.25},  # 0-1 score
-    "brent_impl_vol":      {"mu": 28.0,  "sigma": 12.0,  "w": 0.10},  # %
-    "spr_draw_rate":       {"mu": 0.0,   "sigma": 0.4,   "w": 0.05},  # mb/d
+    # L1 components — calibrated from FRED 2015-2025 where available
+    "brent_backwardation": {"mu": 0.0,    "sigma": 3.0,    "w": 0.20},  # $/bbl 1-6M spread
+    "global_draw_mbd":     {"mu": 0.5,    "sigma": 1.5,    "w": 0.20},  # mb/d draw rate (w: 0.25→0.20)
+    "hormuz_status":       {"mu": 0.05,   "sigma": 0.15,   "w": 0.20},  # 0-1 score (w: 0.25→0.20)
+    "brent_impl_vol":      {"mu": 28.0,   "sigma": 12.0,   "w": 0.10},  # % (commercial data)
+    "spr_draw_rate":       {"mu": 0.0,    "sigma": 0.4,    "w": 0.05},  # mb/d
+    # S(t) suppression components for L1:
+    "brent_spot":          {"mu": 66.43,  "sigma": 18.71,  "w": 0.15},  # $/bbl — FRED DCOILBRENTEU 2015-2025
+    "ceasefire_escalation":{"mu": 0.35,   "sigma": 0.25,   "w": 0.10},  # 0-1; mu=hist mean Middle East conflict
 
     # L2 components
-    "tic_official_flow":   {"mu": 10.0,  "sigma": 35.0,  "w": 0.30},  # $B rolling 12M (inverted)
-    "gold_usd_12m_ret":    {"mu": 5.0,   "sigma": 15.0,  "w": 0.15},  # % (positive = L2 stress)
-    "ustr_10y_spread":     {"mu": 1.5,   "sigma": 0.8,   "w": 0.25},  # Japan-US spread (bp)
+    "tic_official_flow":   {"mu": 10.0,   "sigma": 35.0,   "w": 0.30},  # $B rolling 12M (inverted)
+    "gold_usd_12m_ret":    {"mu": 9.2,    "sigma": 9.2,    "w": 0.15},  # % — 2015-2025 annual returns
+    "ustr_10y_spread":     {"mu": 2.317,  "sigma": 0.809,  "w": 0.25},  # US-Japan 10Y — FRED GS10-JP10Y 2015-2025
+    # S(t) suppression component for L2:
+    "usd_weakness":        {"mu": -116.31,"sigma": 5.40,   "w": 0.10},  # −DXY broad (DTWEXBGS) — low DXY = stress
 
     # L3 components
-    "hyg_lqd_spread":      {"mu": 3.5,   "sigma": 1.5,   "w": 0.30},  # yield spread %
-    "fund_gate_count":     {"mu": 0.0,   "sigma": 0.5,   "w": 0.20},  # integer 0-5+
-    "sofr_ois_spread":     {"mu": 10.0,  "sigma": 8.0,   "w": 0.10},  # bp
+    "hyg_lqd_spread":      {"mu": 3.5,    "sigma": 1.5,    "w": 0.30},  # yield spread %
+    "fund_gate_count":     {"mu": 0.0,    "sigma": 0.5,    "w": 0.20},  # integer 0-5+
+    "sofr_ois_spread":     {"mu": 2.0,    "sigma": 5.0,    "w": 0.10},  # bp — SOFR-DFF (near zero normally)
 
     # L4 components
-    "genius_act_status":   {"mu": 0.1,   "sigma": 0.3,   "w": 0.35},  # 0-1
+    "genius_act_status":   {"mu": 0.1,    "sigma": 0.3,    "w": 0.35},  # 0-1
 
     # L5 components
-    "wheat_stu_inverted":  {"mu": 62.0,  "sigma": 5.0,   "w": 0.25},  # 100 - STU%
-    "fertilizer_fm_score": {"mu": 0.05,  "sigma": 0.2,   "w": 0.20},  # 0-1
-    "henry_hub":           {"mu": 3.0,   "sigma": 1.5,   "w": 0.15},  # $/MMBtu
+    "wheat_stu_inverted":  {"mu": 62.0,   "sigma": 5.0,    "w": 0.25},  # 100 - STU%
+    "fertilizer_fm_score": {"mu": 0.05,   "sigma": 0.2,    "w": 0.20},  # 0-1
+    "henry_hub":           {"mu": 3.135,  "sigma": 1.342,  "w": 0.15},  # $/MMBtu — FRED MHHNGSP 2015-2025
 
     # L6 components
-    "defense_supplemental_bn": {"mu": 0.0, "sigma": 50.0, "w": 0.30},  # $B
+    "defense_supplemental_bn": {"mu": 0.0, "sigma": 50.0,  "w": 0.30},  # $B
 
     # L8 components
-    "bab_status":          {"mu": 0.0,   "sigma": 0.3,   "w": 0.20},  # 0-1
-    "bdti_vs_baseline":    {"mu": 0.0,   "sigma": 200.0, "w": 0.10},  # index points vs 5Y avg
+    "bab_status":          {"mu": 0.0,    "sigma": 0.3,    "w": 0.20},  # 0-1
+    "bdti_vs_baseline":    {"mu": 0.0,    "sigma": 200.0,  "w": 0.10},  # index points vs 5Y avg
 
     # L_cross components
-    "boj_fed_diff_bp":     {"mu": 350.0, "sigma": 80.0,  "w": 0.20},  # bp (Fed - BOJ)
-    "usd_jpy":             {"mu": 130.0, "sigma": 15.0,  "w": 0.20},  # level
-    "boj_rate":            {"mu": 0.1,   "sigma": 0.3,   "w": 0.25},  # % (inverted — low = loaded)
+    "boj_fed_diff_bp":     {"mu": 168.0,  "sigma": 165.0,  "w": 0.20},  # bp — DFF-JP10Y means; old 350/80 was wrong
+    "usd_jpy":             {"mu": 122.82, "sigma": 17.26,  "w": 0.20},  # — FRED DEXJPUS 2015-2025
+    "boj_rate":            {"mu": 0.1,    "sigma": 0.3,    "w": 0.25},  # % (inverted — low = loaded)
 }
 
 
@@ -204,6 +220,15 @@ def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[flo
     c["global_draw_mbd"] = 7.5  # Goldman GIR May confirmed — no free API
     c["brent_impl_vol"]  = None  # CME options — no free API
 
+    # Brent spot price — S(t) market-integrated suppression signal
+    brent_spot = fred_latest("DCOILBRENTEU")
+    c["brent_spot"] = brent_spot
+    print(f"    Brent spot: ${brent_spot:.2f}/bbl" if brent_spot else "    Brent spot: unavailable")
+
+    # Ceasefire escalation — S(t) diplomatic suppression component
+    c["ceasefire_escalation"] = MANUAL_STATE["ceasefire_escalation"]
+    print(f"    Ceasefire escalation: {c['ceasefire_escalation']} (0=ceasefire, 1=active ops, manual)")
+
     # ── L2: Petrodollar ───────────────────────────────────────────────────────
     print("  L2 — GCC/Petrodollar Strain")
 
@@ -230,10 +255,18 @@ def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[flo
     jgb10 = fred_latest("IRLTLT01JPM156N")   # Japan 10Y
     ust10  = fred_latest("GS10")             # US 10Y
     if jgb10 and ust10:
-        c["ustr_10y_spread"] = ust10 - jgb10   # positive = US yields higher
+        c["ustr_10y_spread"] = ust10 - jgb10   # positive = US yields higher = carry pressure
         print(f"    US-Japan 10Y spread: {c['ustr_10y_spread']:.2f}%")
     else:
         c["ustr_10y_spread"] = None
+
+    # USD weakness — S(t) suppression signal for L2 (stored as −DXY broad)
+    dxy = fred_latest("DTWEXBGS")
+    if dxy:
+        c["usd_weakness"] = -dxy   # negated: low DXY → high value → more L2 stress
+        print(f"    USD broad index: {dxy:.2f}  → usd_weakness: {c['usd_weakness']:.2f}")
+    else:
+        c["usd_weakness"] = None
 
     # ── L3: Private Credit ────────────────────────────────────────────────────
     print("  L3 — Private Credit/NBFI")
@@ -353,11 +386,14 @@ def compute_state_vector(components: Dict) -> Dict:
 
     L["l1"], details["l1"] = compute_leg(components, [
         "brent_backwardation", "global_draw_mbd", "hormuz_status",
-        "brent_impl_vol", "spr_draw_rate"
+        "brent_impl_vol", "spr_draw_rate",
+        "brent_spot",           # S(t): market-integrated price signal
+        "ceasefire_escalation", # S(t): diplomatic suppression / escalation
     ])
 
     L["l2"], details["l2"] = compute_leg(components, [
-        "tic_official_flow", "gold_usd_12m_ret", "ustr_10y_spread"
+        "tic_official_flow", "gold_usd_12m_ret", "ustr_10y_spread",
+        "usd_weakness",         # S(t): dollar strength suppresses petrodollar stress
     ])
 
     L["l3"], details["l3"] = compute_leg(components, [
