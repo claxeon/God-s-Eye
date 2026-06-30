@@ -11,6 +11,7 @@ Does NOT auto-resolve predictions — flags them for manual review only.
 """
 
 import json
+import os
 import subprocess
 import sys
 from datetime import date, datetime, timezone
@@ -20,6 +21,8 @@ from typing import Optional
 SUPA_URL  = "https://snykuqyceqpplnzmyksp.supabase.co"
 SUPA_KEY  = "sb_publishable_TJg65x5w56CulOEdWFJNyQ_89loJtit"
 POLY_BASE = "https://gamma-api.polymarket.com/markets"
+FRED_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id="
+EIA_KEY   = os.environ.get("EIA_API_KEY", "6JlB2qAQoHxNGL6kEiiZ6fIRt8cU5FlqR8ReVWYE")
 TODAY     = date.today().isoformat()
 
 
@@ -257,6 +260,133 @@ def main():
     print("\nJSON_RESULT:", json.dumps(result))
 
 
+# ── Data-prediction auto-checkers ────────────────────────────────────────────
+
+def _fred_latest(series_id: str) -> Optional[float]:
+    """Latest non-missing FRED value via curl."""
+    r = subprocess.run(["curl", "-s", "--max-time", "20", FRED_BASE + series_id],
+                       capture_output=True, text=True)
+    if r.returncode != 0 or not r.stdout.strip():
+        return None
+    for line in reversed(r.stdout.strip().split("\n")[1:]):
+        parts = line.split(",")
+        if len(parts) == 2 and parts[1].strip() not in ("", "."):
+            try:
+                return float(parts[1])
+            except ValueError:
+                pass
+    return None
+
+
+def _eia_spr_mmbbl() -> Optional[float]:
+    """Latest EIA SPR (WCSSTUS1) in mmbbl; source is thousands of barrels."""
+    url = (f"https://api.eia.gov/v2/petroleum/sum/sndw/data/"
+           f"?frequency=weekly&data%5B0%5D=value&facets%5Bseries%5D%5B%5D=WCSSTUS1"
+           f"&sort%5B0%5D%5Bcolumn%5D=period&sort%5B0%5D%5Bdirection%5D=desc&length=4"
+           f"&api_key={EIA_KEY}")
+    r = subprocess.run(["curl", "-s", "--max-time", "20", "-g", url],
+                       capture_output=True, text=True)
+    if r.returncode != 0 or not r.stdout.strip():
+        return None
+    try:
+        rows = json.loads(r.stdout)["response"]["data"]
+        return float(rows[0]["value"]) / 1000.0 if rows else None
+    except Exception:
+        return None
+
+
+def _v(val: Optional[float], fmt: str = ".2f") -> str:
+    return f"{val:{fmt}}" if val is not None else "N/A"
+
+
+def check_data_predictions() -> list:
+    """
+    Check conditions for data-resolvable predictions: P17, P19, P20, P22, P24, P25, P29, P30.
+    Does NOT write outcomes to Supabase — flags conditions for human confirmation only.
+    Returns list of dicts with id, condition_met, value, threshold.
+    """
+    print("\n" + "=" * 64)
+    print("  Data Prediction Condition Checks")
+    print("=" * 64 + "\n")
+
+    # Fetch FRED series
+    brent  = _fred_latest("DCOILBRENTEU")    # P17, P25
+    usdjpy = _fred_latest("DEXJPUS")          # P20  (FRED = JPY per USD, so high = weak yen)
+    vix    = _fred_latest("VIXCLS")           # P22, P25
+    gold   = _fred_latest("GOLDAMGBD228NLBM") # P24
+    spr    = _eia_spr_mmbbl()                 # P19
+
+    def _row(pred_id, label, met, val_str, threshold):
+        tag = "✓ CONDITION MET  " if met else "✗ not yet        "
+        print(f"  {pred_id}  {tag}  {val_str:>18}  [{threshold}]")
+        return {"id": pred_id, "condition_met": met, "value": val_str, "threshold": threshold}
+
+    conditions = []
+
+    # P17: Brent > $90
+    p17 = brent is not None and brent > 90.0
+    conditions.append(_row("P17", "Brent>$90", p17, f"Brent=${_v(brent)}", "Brent > $90.00"))
+
+    # P19: SPR < 320 mmbbl
+    p19 = spr is not None and spr < 320.0
+    conditions.append(_row("P19", "SPR<320", p19, f"SPR={_v(spr,'.1f')}mmbbl", "SPR < 320 mmbbl"))
+
+    # P20: USD/JPY < 150 (FRED DEXJPUS = JPY per USD; lower = stronger yen)
+    p20 = usdjpy is not None and usdjpy < 150.0
+    conditions.append(_row("P20", "USD/JPY<150", p20, f"USD/JPY={_v(usdjpy)}", "USD/JPY < 150.00"))
+
+    # P22: VIX > 30
+    p22 = vix is not None and vix > 30.0
+    conditions.append(_row("P22", "VIX>30", p22, f"VIX={_v(vix)}", "VIX > 30.00"))
+
+    # P24: Gold > $3,500
+    p24 = gold is not None and gold > 3500.0
+    conditions.append(_row("P24", "Gold>$3500", p24, f"Gold=${_v(gold,'.0f')}", "Gold > $3,500"))
+
+    # P25: Brent>$100 AND VIX>35 same day
+    p25 = (brent is not None and brent > 100.0 and
+           vix   is not None and vix   > 35.0)
+    conditions.append(_row("P25", "Brent>100+VIX>35", p25,
+                           f"Brent=${_v(brent)}, VIX={_v(vix)}", "Brent>$100 AND VIX>35"))
+
+    # P29: STEO Q4 2026 average global balance < 0 (surplus)
+    q4_url = (SUPA_URL + "/rest/v1/macro_oil_balance"
+              + "?country=eq.WORLD&date=gte.2026-10-01&date=lte.2026-12-01"
+              + "&select=date,net_imports_mbd&order=date.asc")
+    q4_rows = curl_get(q4_url, supa_headers())
+    p29_val = "no Q4 data"
+    p29     = False
+    if isinstance(q4_rows, list) and q4_rows:
+        vals = [float(r["net_imports_mbd"]) for r in q4_rows if r.get("net_imports_mbd") is not None]
+        if vals:
+            avg = sum(vals) / len(vals)
+            p29 = avg < 0.0
+            p29_val = f"Q4 avg={avg:+.3f} mb/d"
+    conditions.append(_row("P29", "STEO Q4 surplus", p29, p29_val, "Q4 avg < 0 mb/d"))
+
+    # P30: L(t) < 0.50 in state_vector_history (any row after Jul 1)
+    lt_url = (SUPA_URL + "/rest/v1/state_vector_history"
+              + "?composite_score=lt.0.5&date=gte.2026-07-01"
+              + "&select=date,composite_score&order=date.desc&limit=1")
+    lt_rows = curl_get(lt_url, supa_headers())
+    p30 = isinstance(lt_rows, list) and len(lt_rows) > 0
+    if p30:
+        p30_val = f"L(t)={lt_rows[0]['composite_score']:.4f} on {lt_rows[0]['date']}"
+    else:
+        p30_val = "L(t) never <0.50"
+    conditions.append(_row("P30", "L(t)<0.50", p30, p30_val, "composite < 0.50"))
+
+    # Summary
+    met = [c["id"] for c in conditions if c["condition_met"]]
+    print()
+    if met:
+        print(f"  ⚠️  AUTO-RESOLVE CANDIDATES (manual confirmation needed): {met}")
+    else:
+        print("  ✅  No data conditions met today.")
+
+    return conditions
+
+
 # ── EIA STEO monthly refresh ──────────────────────────────────────────────────
 
 def refresh_steo_if_stale() -> str:
@@ -339,8 +469,13 @@ def refresh_steo_if_stale() -> str:
 
 
 if __name__ == "__main__":
-    # Refresh STEO monthly data before Polymarket snapshot
+    # 1. Refresh STEO monthly data
     print("\n  Checking EIA STEO freshness...")
     steo_status = refresh_steo_if_stale()
     print(f"  {steo_status}\n")
+
+    # 2. Polymarket snapshot for open predictions with slugs
     main()
+
+    # 3. Data condition checks for auto-resolvable predictions
+    data_conditions = check_data_predictions()
