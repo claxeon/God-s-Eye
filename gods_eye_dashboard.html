@@ -317,16 +317,37 @@ function wp(base) {
 }
 
 // ─── Simulation ───────────────────────────────────────────────────────────────
-function mkState() {
+// lv = liveVector row from Supabase (may be null if offline).
+// Fallback values are Jun 30 calibrated actuals — not the stale Jun 8 values.
+function mkState(lv) {
+  const l = lv || {};
   return {
     w: 0,
-    l1:0.99,l2:0.89,l3:0.67,l4:0.32,l5:0.83,l6:0.45,l7:0.42,l8:0.89,l9:0.38,
-    brent:118, vix:22, jpy:159, yld:4.6, spr:357,
-    bojHiked:false, unwind:false, crash:false,
-    bab:false, babDecl:true, mines:false, israel:false,
-    ceasefire:false, cascade:false, tether:false,
+    // Leg scores — live Supabase if available, else Jun 30 calibrated fallback
+    l1: l.l1  != null ? +l.l1  : 0.87,
+    l2: l.l2  != null ? +l.l2  : 0.56,
+    l3: l.l3  != null ? +l.l3  : 0.68,
+    l4: l.l4  != null ? +l.l4  : 0.56,
+    l5: l.l5  != null ? +l.l5  : 0.78,
+    l6: l.l6  != null ? +l.l6  : 0.77,
+    l7: l.l7  != null ? +l.l7  : 0.42,
+    l8: l.l8  != null ? +l.l8  : 0.58,
+    l9: l.l9  != null ? +l.l9  : 0.38,
+    // Market observables — Jun 30 actuals
+    brent:76, vix:16, jpy:162, yld:4.3, spr:340,
+    // Event flags — Jun 30 reality
+    bojHiked:true,   // BOJ hiked to 1.0% Jun 16 — done
+    unwind:true,     // Carry unwind underway; no crash yet (VIX 16)
+    crash:false,
+    bab:false, babDecl:true,  // Declared Jun 8; AIS physical not yet confirmed
+    mines:false,
+    israel:true,     // Israel actively hitting Lebanon (user confirmed Jun 30)
+    ceasefire:false, // Nominal MoU Jun 17 — not substantive
+    cascade:false, tether:false,
     sprFloor:false, saudiPeg:false, yanbu:false, genius:false,
-    pgsa:true, fedCut:false, ticSell:false,
+    pgsa:true,       // PGSA toll architecture active
+    fedCut:false,
+    ticSell:true,    // TIC official selling –$37.9B March confirmed
     pA:0.12, pB:0.38, pC:0.28, pD:0.15, pE:0.07,
     evts:[]
   };
@@ -340,9 +361,11 @@ function norm(s) {
   s.pE = Math.max(0.01, s.pE/t);
 }
 
-function simRun(params, r) {
+function simRun(params, r, lv) {
+  const fromLive = !!lv;
   const p = {
-    hikeWk: Math.max(1, 1 + Math.round(gauss(r, 0, 1))),
+    // BOJ hike already fired — set to week 0 so lag calc works naturally
+    hikeWk: fromLive ? 0 : Math.max(1, 1 + Math.round(gauss(r, 0, 1))),
     hikeP: Math.min(0.97, Math.max(0.5, gauss(r, params.bojP, 0.07))),
     genWk: 6 + Math.floor(r() * 14),
     mineP: r() * 0.025 + 0.015,
@@ -354,10 +377,15 @@ function simRun(params, r) {
   };
 
   const hist = [];
-  let s = mkState();
+  let s = mkState(lv);
   hist.push(Object.assign({}, s));
 
-  let hikeFired=false, hikeWkA=null, uwFired=false, ustDist=false, gates=2;
+  // Seed event state from Jun 30 reality when using live vector
+  let hikeFired = fromLive;        // BOJ hiked Jun 16 — already happened
+  let hikeWkA   = fromLive ? 0 : null; // treat as week 0
+  let uwFired   = fromLive;        // carry unwind underway but no crash yet
+  let ustDist   = fromLive;        // TIC selling confirmed March
+  let gates = 2;
 
   for (let w=1; w<=29; w++) {
     s = Object.assign({}, s, {w, evts:[]});
@@ -1810,13 +1838,14 @@ function App() {
     setRunning(true);setProg(0);setRes(null);
     const hists=[];
     for(let i=0;i<nRuns;i++){
-      hists.push(simRun(params,mkRng(42+i*7919)));
+      hists.push(simRun(params,mkRng(42+i*7919),liveVector));
       if(i%40===39){setProg((i+1)/nRuns);await new Promise(function(r){setTimeout(r,0);});}
     }
     setProg(1);setRes(aggregate(hists));setRunning(false);
-  },[nRuns,params]);
+  },[nRuns,params,liveVector]);
 
-  useEffect(function(){run();},[]);
+  // Auto-run on mount; re-run when liveVector arrives so simulation uses live initial conditions
+  useEffect(function(){run();},[liveVector]);
 
   const crashP=res?res.crashWks.length/res.N:0;
   const maxCrash=res?Math.max(...res.crashDist,1):1;
