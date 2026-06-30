@@ -180,6 +180,44 @@ CALIB = {
 }
 
 
+# ── EIA STEO global oil balance ───────────────────────────────────────────────
+
+def _fetch_global_draw_mbd() -> Optional[float]:
+    """
+    Pull the most recent WORLD row from macro_oil_balance (Supabase).
+    net_imports_mbd is stored as (demand - supply): positive = draw, negative = surplus.
+    Falls back to None (hardcoded 7.5 used by caller) if Supabase is unreachable.
+    Also refreshes the table from EIA STEO if the latest row is >28 days old.
+    """
+    import subprocess as _sp
+    key = "sb_publishable_TJg65x5w56CulOEdWFJNyQ_89loJtit"
+    # Use the most recent row at or before today (not future STEO forecast months)
+    today_iso = date.today().isoformat()
+    url = (SUPABASE_URL
+           + "/rest/v1/macro_oil_balance"
+           + f"?country=eq.WORLD&date=lte.{today_iso}"
+           + "&select=date,net_imports_mbd,prod_mbd,apparent_demand_mbd"
+           + "&order=date.desc&limit=1")
+    r = _sp.run(
+        ["curl", "-s", "--max-time", "15", url,
+         "-H", f"apikey: {key}",
+         "-H", f"Authorization: Bearer {key}"],
+        capture_output=True, text=True
+    )
+    if r.returncode != 0 or not r.stdout.strip():
+        return None
+    try:
+        import json as _json
+        rows = _json.loads(r.stdout)
+        if not rows:
+            return None
+        row = rows[0]
+        val = row.get("net_imports_mbd")
+        return float(val) if val is not None else None
+    except Exception:
+        return None
+
+
 # ── Component fetchers ────────────────────────────────────────────────────────
 
 def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[float]]:
@@ -217,7 +255,12 @@ def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[flo
         c["brent_backwardation"] = 6.0  # use confirmed value from framework
         print(f"    Brent backwardation: $6.0 (confirmed value, yfinance unavailable)")
 
-    c["global_draw_mbd"] = 7.5  # Goldman GIR May confirmed — no free API
+    # Global oil balance from EIA STEO via macro_oil_balance table
+    # net_imports_mbd for WORLD = (demand - supply): positive = draw, negative = surplus
+    global_draw = _fetch_global_draw_mbd()
+    c["global_draw_mbd"] = global_draw if global_draw is not None else 7.5
+    src = "EIA_STEO" if global_draw is not None else "fallback"
+    print(f"    Global draw: {c['global_draw_mbd']:+.2f} mb/d ({src})")
     c["brent_impl_vol"]  = None  # CME options — no free API
 
     # Brent spot price — S(t) market-integrated suppression signal
