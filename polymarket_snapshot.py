@@ -376,6 +376,40 @@ def check_data_predictions() -> list:
         p30_val = "L(t) never <0.50"
     conditions.append(_row("P30", "L(t)<0.50", p30, p30_val, "composite < 0.50"))
 
+    # ── Inventory-level predictions (from inventory_levels table) ──────────────
+    def _inv_row(series_id):
+        """Fetch latest inventory_levels row for a series."""
+        url = (SUPA_URL + "/rest/v1/inventory_levels"
+               + f"?series_id=eq.{series_id}"
+               + "&select=value_mbbl,z_vs_5yr,as_of_date"
+               + "&order=as_of_date.desc&limit=1")
+        r = curl_get(url, supa_headers())
+        return r[0] if isinstance(r, list) and r else None
+
+    # P31: WCESTUS1 < 400 mmbbl
+    inv_crude = _inv_row("WCESTUS1")
+    p31_val = f"crude={inv_crude['value_mbbl']:.1f}mmbbl" if inv_crude else "no data"
+    p31 = inv_crude is not None and float(inv_crude["value_mbbl"]) < 400.0
+    conditions.append(_row("P31", "Crude<400", p31, p31_val, "WCESTUS1 < 400 mmbbl"))
+
+    # P32: Cushing < 15 mmbbl
+    inv_cush = _inv_row("W_EPC0_SAX_YCUOK_MBBL")
+    p32_val = f"Cushing={inv_cush['value_mbbl']:.1f}mmbbl" if inv_cush else "no data"
+    p32 = inv_cush is not None and float(inv_cush["value_mbbl"]) < 15.0
+    conditions.append(_row("P32", "Cushing<15", p32, p32_val, "Cushing < 15 mmbbl"))
+
+    # P33: Gasoline z ≤ -2.0
+    inv_gas = _inv_row("WGTSTUS1")
+    p33_val = f"gas_z={inv_gas['z_vs_5yr']:.2f}" if inv_gas else "no data"
+    p33 = inv_gas is not None and inv_gas.get("z_vs_5yr") is not None and float(inv_gas["z_vs_5yr"]) <= -2.0
+    conditions.append(_row("P33", "Gas z≤-2.0", p33, p33_val, "WGTSTUS1 z_vs_5yr ≤ -2.0"))
+
+    # P34: Total petroleum < 1450 mmbbl
+    inv_tot = _inv_row("WTTSTUS1")
+    p34_val = f"total={inv_tot['value_mbbl']:.0f}mmbbl" if inv_tot else "no data"
+    p34 = inv_tot is not None and float(inv_tot["value_mbbl"]) < 1450.0
+    conditions.append(_row("P34", "TotalPet<1450", p34, p34_val, "WTTSTUS1 < 1,450 mmbbl"))
+
     # Summary
     met = [c["id"] for c in conditions if c["condition_met"]]
     print()

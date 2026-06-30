@@ -19,8 +19,11 @@ fi
 
 cd "$SCRIPT_DIR"
 
-# G-009: Polymarket snapshot + STEO refresh + data condition checks (all output to stderr)
+# Step 1: Physical inventory tracker — runs first so state vector can read from Supabase
+python3 inventory_tracker.py 1>&2 || true
+
+# Step 2: Polymarket snapshot + STEO refresh + data condition checks
 python3 polymarket_snapshot.py 1>&2 || true
 
-# State vector — JSON to stdout for trigger to parse
+# Step 3: State vector — JSON to stdout for trigger to parse
 exec python3 state_vector_compute.py --date "$(date +%Y-%m-%d)" --json

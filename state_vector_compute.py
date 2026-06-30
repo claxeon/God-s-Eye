@@ -136,12 +136,16 @@ def fred_latest(series_id: str) -> Optional[float]:
 # These are calibrated from 2015-2026 historical data
 # Initially approximate — will be updated from Supabase history once populated
 CALIB = {
-    # L1 components — calibrated from FRED 2015-2025 where available
-    "brent_backwardation": {"mu": 0.0,    "sigma": 3.0,    "w": 0.20},  # $/bbl 1-6M spread
-    "global_draw_mbd":     {"mu": 0.5,    "sigma": 1.5,    "w": 0.20},  # mb/d draw rate (w: 0.25→0.20)
-    "hormuz_status":       {"mu": 0.05,   "sigma": 0.15,   "w": 0.20},  # 0-1 score (w: 0.25→0.20)
-    "brent_impl_vol":      {"mu": 28.0,   "sigma": 12.0,   "w": 0.10},  # % (commercial data)
-    "spr_draw_rate":       {"mu": 0.0,    "sigma": 0.4,    "w": 0.05},  # mb/d
+    # L1 components — calibrated from FRED/EIA 2015-2025 where available
+    "brent_backwardation": {"mu": 0.0,    "sigma": 3.0,    "w": 0.10},  # $/bbl 1-6M spread (w: 0.20→0.10; Cushing now primary)
+    "global_draw_mbd":     {"mu": 0.5,    "sigma": 1.5,    "w": 0.20},  # mb/d draw rate
+    "hormuz_status":       {"mu": 0.05,   "sigma": 0.15,   "w": 0.20},  # 0-1 score
+    "brent_impl_vol":      {"mu": 28.0,   "sigma": 12.0,   "w": 0.05},  # % (w: 0.10→0.05; no free API, often null)
+    "spr_draw_rate":       {"mu": 0.0,    "sigma": 0.4,    "w": 0.00},  # retired: redundant w/ crude_stocks_inv + STEO global draw
+    # Physical inventory components — initial wave signals (Step 1 in supply chain cascade):
+    # Stored as inverted deviation: value = (5yr_avg − actual); mu=0.0 so z = deficit/sigma
+    "cushing_stocks_inv":  {"mu": 0.0,    "sigma": 9.05,   "w": 0.10},  # mmbbl below 5yr avg 32.2; EIA W_EPC0_SAX_YCUOK_MBBL
+    "crude_stocks_inv":    {"mu": 0.0,    "sigma": 20.0,   "w": 0.10},  # mmbbl below 5yr avg 439.5; EIA WCESTUS1
     # S(t) suppression components for L1:
     "brent_spot":          {"mu": 66.43,  "sigma": 18.71,  "w": 0.15},  # $/bbl — FRED DCOILBRENTEU 2015-2025
     "ceasefire_escalation":{"mu": 0.35,   "sigma": 0.25,   "w": 0.10},  # 0-1; mu=hist mean Middle East conflict
@@ -218,6 +222,58 @@ def _fetch_global_draw_mbd() -> Optional[float]:
         return None
 
 
+# ── EIA physical inventory levels ────────────────────────────────────────────
+
+def _fetch_inventory_levels() -> Dict[str, Optional[float]]:
+    """
+    Pull latest inventory readings from Supabase inventory_levels table
+    (populated by inventory_tracker.py, which runs first in the daily pipeline).
+
+    Returns pre-inverted deviation signals for CALIB with mu=0.0:
+      cushing_stocks_inv = 32.2 − actual_cushing_mmbbl   (sigma=9.05)
+      crude_stocks_inv   = 439.5 − actual_crude_mmbbl    (sigma=20.0)
+
+    Positive value = below 5yr seasonal avg = stress signal.
+    """
+    import subprocess as _sp
+    key = "sb_publishable_TJg65x5w56CulOEdWFJNyQ_89loJtit"
+    series_filter = "series_id=in.(WCESTUS1,W_EPC0_SAX_YCUOK_MBBL)"
+    url = (SUPABASE_URL
+           + "/rest/v1/inventory_levels"
+           + f"?{series_filter}"
+           + "&select=series_id,value_mbbl,as_of_date"
+           + "&order=as_of_date.desc"
+           + "&limit=10")
+    r = _sp.run(
+        ["curl", "-s", "--max-time", "15", url,
+         "-H", f"apikey: {key}",
+         "-H", f"Authorization: Bearer {key}"],
+        capture_output=True, text=True
+    )
+    if r.returncode != 0 or not r.stdout.strip():
+        return {}
+    try:
+        import json as _j
+        rows = _j.loads(r.stdout)
+        if not isinstance(rows, list):
+            return {}
+        result: Dict[str, Optional[float]] = {}
+        seen: set = set()
+        for row in rows:
+            sid = row.get("series_id")
+            val = row.get("value_mbbl")
+            if sid in seen or val is None:
+                continue
+            seen.add(sid)
+            if sid == "W_EPC0_SAX_YCUOK_MBBL":
+                result["cushing_stocks_inv"] = round(32.2 - float(val), 3)
+            elif sid == "WCESTUS1":
+                result["crude_stocks_inv"] = round(439.5 - float(val), 3)
+        return result
+    except Exception:
+        return {}
+
+
 # ── Component fetchers ────────────────────────────────────────────────────────
 
 def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[float]]:
@@ -271,6 +327,22 @@ def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[flo
     # Ceasefire escalation — S(t) diplomatic suppression component
     c["ceasefire_escalation"] = MANUAL_STATE["ceasefire_escalation"]
     print(f"    Ceasefire escalation: {c['ceasefire_escalation']} (0=ceasefire, 1=active ops, manual)")
+
+    # Physical inventory levels — initial wave signal (upstream of price)
+    # Values are inverted deviations: positive = below seasonal avg = stress
+    inv = _fetch_inventory_levels()
+    c["cushing_stocks_inv"] = inv.get("cushing_stocks_inv")
+    c["crude_stocks_inv"]   = inv.get("crude_stocks_inv")
+    if c["cushing_stocks_inv"] is not None:
+        actual_cushing = round(32.2 - c["cushing_stocks_inv"], 1)
+        print(f"    Cushing stocks: {actual_cushing} mmbbl (inv_dev={c['cushing_stocks_inv']:+.1f}, z={c['cushing_stocks_inv']/9.05:+.2f})")
+    else:
+        print("    Cushing stocks: unavailable (inventory_tracker not yet run today?)")
+    if c["crude_stocks_inv"] is not None:
+        actual_crude = round(439.5 - c["crude_stocks_inv"], 1)
+        print(f"    Crude stocks excl SPR: {actual_crude} mmbbl (inv_dev={c['crude_stocks_inv']:+.1f}, z={c['crude_stocks_inv']/20.0:+.2f})")
+    else:
+        print("    Crude stocks excl SPR: unavailable")
 
     # ── L2: Petrodollar ───────────────────────────────────────────────────────
     print("  L2 — GCC/Petrodollar Strain")
@@ -487,7 +559,9 @@ def compute_state_vector(components: Dict) -> Dict:
 
     L["l1"], details["l1"] = compute_leg(components, [
         "brent_backwardation", "global_draw_mbd", "hormuz_status",
-        "brent_impl_vol", "spr_draw_rate",
+        "brent_impl_vol",
+        "cushing_stocks_inv",   # Step 1: physical delivery stress (inverted, z>0 = below seasonal)
+        "crude_stocks_inv",     # Step 1: upstream crude cushion (inverted, z>0 = below seasonal)
         "brent_spot",           # S(t): market-integrated price signal
         "ceasefire_escalation", # S(t): diplomatic suppression / escalation
     ])
