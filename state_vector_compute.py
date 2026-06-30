@@ -348,6 +348,64 @@ def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[flo
     return c
 
 
+# ── Per-leg downgrade rules ───────────────────────────────────────────────────
+# MANUAL_STATE values only go up (hormuz escalates, gates accumulate).
+# These rules auto-cap MANUAL_STATE-derived components when observables show
+# sustained suppression — prevents the model being a ratchet.
+
+def apply_downgrade_rules(components: dict) -> list:
+    """
+    Checks observable thresholds and reduces MANUAL_STATE-derived component
+    values in `components` (in-place) when sustained suppression is confirmed.
+
+    Returns list of rule-fire descriptions for logging.
+
+    Rules defined here:
+      DR-1  Brent < $95  → cap hormuz_status at 0.20  (market not pricing PGSA war premium)
+      DR-2  Brent < $80  → cap ceasefire_escalation at 0.35  (deep price suppression = peace momentum)
+      DR-3  Jul 8+ with bab_status==0.50  → downgrade to 0.25  (30-day Bab declaration unconfirmed)
+    """
+    from datetime import date as _date
+    fired = []
+    brent = components.get("brent_spot")
+
+    # DR-1: Brent war-premium collapse — PGSA without market pricing
+    # At $95 the war premium historically starts. Below it: market doesn't believe PGSA.
+    if brent is not None and brent < 95.0:
+        old = components.get("hormuz_status", MANUAL_STATE["hormuz_status"])
+        if old > 0.20:
+            components["hormuz_status"] = 0.20
+            fired.append(
+                f"DR-1 fired: Brent ${brent:.0f} < $95 → hormuz_status {old:.2f}→0.20 "
+                f"(market not pricing PGSA war premium)"
+            )
+
+    # DR-2: Deep price suppression signals diplomatic progress
+    # $80 is where Iran-deal pricing would put Brent historically (JCPOA 2015: ~$50-60).
+    if brent is not None and brent < 80.0:
+        old = components.get("ceasefire_escalation", MANUAL_STATE["ceasefire_escalation"])
+        if old > 0.35:
+            components["ceasefire_escalation"] = 0.35
+            fired.append(
+                f"DR-2 fired: Brent ${brent:.0f} < $80 (deep suppression) → "
+                f"ceasefire_escalation {old:.2f}→0.35"
+            )
+
+    # DR-3: Bab al-Mandab 30-day bluff rule — if declared but no AIS confirmation
+    # by Jul 8, downgrade from 0.50 (declared) to 0.25 (unconfirmed/partial)
+    today = _date.today()
+    if today > _date(2026, 7, 8):
+        bab = components.get("bab_status", MANUAL_STATE["bab_status"])
+        if abs(bab - 0.50) < 0.01:  # still at "declared, unconfirmed" level
+            components["bab_status"] = 0.25
+            fired.append(
+                f"DR-3 fired: Bab declaration >30 days, no AIS physical confirmation "
+                f"→ bab_status 0.50→0.25 (re-rated bluff/incomplete)"
+            )
+
+    return fired
+
+
 # ── L_i computation ──────────────────────────────────────────────────────────
 
 def compute_leg(components: Dict[str, Optional[float]],
@@ -516,6 +574,17 @@ if __name__ == "__main__":
 
     print(f"\n  God's Eye State Vector — {target}")
     components = get_components(target)
+
+    # Apply per-leg downgrade rules — auto-cap MANUAL_STATE components when
+    # sustained observable suppression contradicts the manually-set values
+    downgrade_fired = apply_downgrade_rules(components)
+    if downgrade_fired:
+        print(f"\n  📉 DOWNGRADE RULES FIRED ({len(downgrade_fired)}):")
+        for msg in downgrade_fired:
+            print(f"     {msg}")
+    else:
+        print("\n  ✅ No downgrade rules triggered")
+
     L, details = compute_state_vector(components)
 
     if args.json:
