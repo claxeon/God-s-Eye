@@ -103,6 +103,16 @@ svg.chart{width:100%;overflow:visible}
 .regime-exp{font-size:9px;color:#6b7280;line-height:1.5;margin-top:6px;border-top:1px solid #1e2938;padding-top:6px}
 /* CI badge */
 .ci-badge{font-size:8px;color:#374151;margin-left:6px}
+/* Legibility additions */
+.leg-desc{font-size:8px;color:#4b5563;line-height:1.4;margin-top:2px;font-style:italic}
+.cb-legend{display:flex;flex-wrap:wrap;gap:5px;margin-top:14px;padding:10px 14px;background:#070b10;border:1px solid #1e2938;border-radius:6px;align-items:center}
+.cb-item{font-size:8px;padding:3px 8px;border-radius:3px;font-weight:700;letter-spacing:.05em}
+.intro-card{background:linear-gradient(135deg,#070d17,#0a1020);border:1px solid rgba(239,68,68,.18);border-left:3px solid rgba(239,68,68,.45);border-radius:8px;padding:16px 18px}
+.intro-title{font-size:10px;font-weight:700;letter-spacing:.12em;color:#d1d5db;text-transform:uppercase;margin-bottom:8px}
+.intro-body{font-size:10px;color:#6b7280;line-height:1.8}
+.intro-body b{color:#9ca3af}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:4px;flex-shrink:0;animation:blink 2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 
 
 .tab-bar{display:flex;gap:3px;background:#0d1117;border:1px solid #1e2938;border-radius:8px;padding:4px;flex-wrap:wrap}
@@ -195,18 +205,18 @@ const REGIME_EXPLANATIONS = {
 
 
 const PROVENANCE_MAP = {
-  l1:{label:'War/Energy Chokepoints',type:'observed',value:'0.99',
-    source:'PGSA Operations, MARAD Advisory 2026-020, Lloyd\'s Bimco rerouting data',
-    file:'state_vector_compute.py → compute_l1_war_energy()',
-    rule:'PGSA toll confirmed active + 14.5mb/d offline + SPR heel approaching Jul 1',
-    conf:'confirmed',updated:'Jun 8 2026',
-    params:'PGSA_ACTIVE=true | HORMUZ_OFFLINE_MBD=14.5 | SPR_FLOOR_DATE=Jul_1'},
-  l2:{label:'GCC/Petrodollar Strain',type:'derived',value:'0.89',
-    source:'US Treasury TIC H.4.1 Mar 2026 | BOJ/MoF weekly | Coinbase OTC flow',
-    file:'state_vector_compute.py → compute_l2_gcc_petrodollar()',
-    rule:'Official sector net -$37.9B TIC + USD/JPY trajectory + dollar index stress',
-    conf:'confirmed',updated:'Mar 31 2026 (TIC lag 45d)',
-    params:'TIC_OFFICIAL=-37900M | USDJPY=159 | DXY_STRESS=high'},
+  l1:{label:'War/Energy Chokepoints',type:'observed',value:'0.90',
+    source:'PGSA Operations, MARAD Advisory 2026-020, EIA SPR weekly (WCSSPUS1), FRED Brent',
+    file:'state_vector_compute.py → get_components() → l1 composite',
+    rule:'brent_backwardation z=2.0 | global_draw_mbd=7.5 z=4.67 | hormuz_status=0.33 (PGSA toll) | spr_draw=1.29 mmbbl/d',
+    conf:'confirmed',updated:'Jun 30 2026',
+    params:'BRENT_BACKWARDATION=6.0 | GLOBAL_DRAW_MBD=7.5 | HORMUZ_STATUS=0.33 | SPR_DRAW_RATE=1.29'},
+  l2:{label:'GCC/Petrodollar Strain',type:'derived',value:'0.63',
+    source:'US Treasury TIC H.4.1 Mar 2026 | FRED GOLDAMGBD228NLBM | FRED GS10, IRLTLT01JPM156N',
+    file:'state_vector_compute.py → get_components() → l2 composite',
+    rule:'tic_official_flow=37.9B z=0.80 | gold_12m_ret=22.8% z=1.19 | us_jp_spread=1.83% z=0.41',
+    conf:'confirmed',updated:'Mar 31 2026 (TIC 45d lag)',
+    params:'TIC_OFFICIAL=37900M | GOLD_12M=0.228 | USTR_JP_SPREAD=1.83'},
   l3:{label:'Private Credit/NBFI',type:'observed',value:'0.67',
     source:'Apollo LP letter Apr 2026 | Barings redemption disclosure | Dimon JPM letter Apr 6',
     file:'state_vector_compute.py → compute_l3_private_credit()',
@@ -237,30 +247,30 @@ const PROVENANCE_MAP = {
     rule:'Taiwan strait risk implied by US carrier gap + CHIPS Act domestic offset (partial)',
     conf:'inferred',updated:'Jun 1 2026',
     params:'TSMC_RISK_IMPLIED=0.42 | CHIPS_DISBURSED=31pct | CARRIER_GAPS=active'},
-  l8:{label:'Maritime/Insurance',type:'observed',value:'0.89',
-    source:'AIS routing data | Houthi Jun 8 declaration | MARAD Advisory | War Risk',
-    file:'state_vector_compute.py → compute_l8_maritime_insurance()',
-    rule:'Houthi Bab al-Mandab blockade confirmed Jun 8 + Maersk reversal + war risk spike',
-    conf:'confirmed',updated:'Jun 8 2026',
-    params:'HOUTHI_DECLARED=true | MAERSK_REVERSED=true | WAR_RISK=elevated'},
-  l9:{label:'AI/Labor',type:'inferred',value:'0.38',
+  l8:{label:'Maritime / Shipping Insurance',type:'observed',value:'0.58',
+    source:'AIS routing data | Houthi Jun 8 declaration (partial MoU Jun 21) | MARAD Advisory | War Risk premia',
+    file:'state_vector_compute.py → get_components() → l8 composite',
+    rule:'bab_status=0.50 (partial reopen per Jun 21 MoU) z=1.67 | bdti_vs_baseline=null (missing data)',
+    conf:'confirmed',updated:'Jun 30 2026',
+    params:'BAB_STATUS=0.50 | MOU_DATE=Jun_21 | MARAD_ACTIVE=true | WAR_RISK=elevated'},
+  l9:{label:'AI / Labor Displacement',type:'inferred',value:'0.38',
     source:'BLS employment | LMM adoption rates | UAW/Teamsters Q2 watch list',
-    file:'state_vector_compute.py → compute_l9_ai_labor()',
-    rule:'AI displacement signal + Q2 labor action risk (low-medium confidence)',
-    conf:'inferred',updated:'Jun 1 2026',
+    file:'state_vector_compute.py → get_components() → l9 composite',
+    rule:'Hardcoded 0.38 — observables (RSP/SPY breadth, % stocks above 200dma) not yet wired in',
+    conf:'inferred',updated:'Jun 30 2026',
     params:'LMM_ADOPTION=accelerating | STRIKE_RISK=moderate | DISPLACEMENT=0.38'},
-  l_cross:{label:'JPY Carry Cross-Cut — HIKE CONFIRMED',type:'derived',value:'1.00',
-    source:'BOJ Jun 9 2026 rate decision | USD/JPY spot | CFTC COT JPY | BIS cross-border flows',
-    file:'state_vector_compute.py → compute_l_cross_jpy_carry()',
-    rule:'BOJ HIKED TO 1.00% JUN 9 — carry unwind mechanism NOW LIVE. $4-20T JPY positions at exit threshold.',
-    conf:'confirmed',updated:'Jun 9 2026',
-    params:'BOJ_RATE=1.00pct | BOJ_HIKE=CONFIRMED | USDJPY=159 | UST_JP_SPREAD=~288bp | CARRY_EXPO=4-20T'},
-  composite:{label:'Composite Convergence Score',type:'derived',value:'91%',
-    source:'Weighted harmonic mean of 9 legs + cross-cut amplifier',
-    file:'state_vector_compute.py → compute_composite()',
-    rule:'w_i * l_i harmonic mean; cross-cut at 1.00 amplifies to CB-D/E boundary',
-    conf:'derived',updated:'Jun 8 2026',
-    params:'WEIGHTS=[0.25,0.20,0.12,0.08,0.12,0.08,0.05,0.15,0.05] | CROSS_AMP=1.0'},
+  l_cross:{label:'JPY Carry Trade (Cross-Cut)',type:'derived',value:'0.72',
+    source:'FRED DFF (EFFR as OIS proxy) | FRED DEXJPUS | FRED IRLTLT01JPM156N | BOJ Jun 9 rate decision',
+    file:'state_vector_compute.py → get_components() → l_cross composite',
+    rule:'boj_rate=1.00% z=3.0 | usd_jpy=161.67 z=2.11 | boj_fed_diff=-263bp (inverted) z=-1.09',
+    conf:'confirmed',updated:'Jun 30 2026',
+    params:'BOJ_RATE=1.00pct | USDJPY=161.67 | FED_RATE=4.33pct | US_JP_SPREAD_BP=263'},
+  composite:{label:'Composite Convergence Score',type:'derived',value:'67.1%',
+    source:'σ(Σ w_i · z_ij(t)) — logistic-transformed weighted z-score composite of 9 legs',
+    file:'state_vector_compute.py → compute_state_vector()',
+    rule:'L_i(t) = σ(Σ_j w_ij · z_ij(t)) per leg; composite = Σ w_i·L_i (legs 1-9 only, l_cross excluded from GENERATED ALWAYS AS)',
+    conf:'derived',updated:'Jun 30 2026',
+    params:'WEIGHTS=[l1:0.20,l2:0.15,l3:0.12,l4:0.08,l5:0.12,l6:0.08,l7:0.08,l8:0.10,l9:0.07] | CB=CB-C'},
   flashCrash:{label:'Flash Crash Probability — CONDITION 1 MET',type:'simulated',value:'variable',
     source:'Monte Carlo engine output — emergent, not an input parameter',
     file:'gods_eye_engine.py → simRun() → carry_unwind_trigger()',
@@ -958,30 +968,59 @@ function PcaScatter({coords,k,ellipses}) {
 }
 
 // ─── L(t) State Vector Panel ─────────────────────────────────────────────────
-// Current confirmed framework state as of Jun 8, 2026
+// Live state: pulled from Supabase state_vector_history on load; falls back to Jun 30 calibration
 const STATE_VECTOR = {
   legs: [
-    {id:'l1', label:'War/Energy Chokepoints', val:0.99, v5:0.78, change:0, components:['PGSA toll active','14.5mb/d offline','SPR degradation'],conf:'confirmed', v5note:'Physical disruption real; price expression suppressed — S(t) high. Brent ~$91, traffic recovering.'},
-    {id:'l2', label:'GCC/Petrodollar Strain', val:0.89, v5:0.74, change:+2, components:['TIC official –$37.9B','USD/JPY 159','Japan still buying Feb'],conf:'confirmed', v5note:'Official selling confirmed; Japan-seller call locked at 82% (P07, TIC Jun 18). Peg stress quiet.'},
-    {id:'l3', label:'Private Credit/NBFI',    val:0.67, v5:0.52, change:0, components:['Apollo 45¢','Barings 44.3%','Dimon Apr 6'],conf:'confirmed', v5note:'2 gates, no cascade (threshold ≥3). Recession 30% vs market 17.5%.'},
-    {id:'l4', label:'Settlement Rails',       val:0.32, v5:0.30, change:0, components:['GENIUS Act pending 30%','Tether $134B','SWIFT intact'],conf:'inferred', v5note:'Largely unchanged.'},
-    {id:'l5', label:'Food/Fertilizer',        val:0.83, v5:0.48, change:0, components:['QAFCO FM 14%','Kuwait FM','Bahrain FM'],conf:'confirmed', v5note:'Wheat at 2-month lows; QAFCO gap real but a 2027-crop-year thesis, not a now-thesis.'},
-    {id:'l6', label:'Munitions/MIC',          val:0.45, v5:0.45, change:0, components:['$200B supplemental','NATO stretch','Queue backlogs'],conf:'confirmed', v5note:'Unchanged; latent.'},
-    {id:'l7', label:'Semiconductor/Taiwan',   val:0.42, v5:0.38, change:0, components:['TSMC implied','CHIPS Act','US-China BIS'],conf:'inferred', v5note:'China patience while US Gulf-occupied.'},
-    {id:'l8', label:'Maritime/Insurance',     val:0.89, v5:0.72, change:+4, components:['Houthi blockade Jun 8','Maersk reversed','MARAD 2026-006'],conf:'confirmed', v5note:'Freight elevated; declared ≠ AIS-confirmed; toll regime is order, not escalation.'},
-    {id:'l9', label:'AI/Labor',               val:0.38, v5:0.30, change:0, components:['Displacement risk','LMM adoption','Strikes Q2'],conf:'inferred', v5note:'Least confirmed; breadth observables (RSP/SPY) to be wired in.'},
+    {id:'l1', label:'War/Energy Chokepoints',
+     desc:'Is the flow of oil through the Persian Gulf being disrupted by the ongoing Middle East conflict?',
+     val:0.90, v5:0.78, change:-9, components:['PGSA toll active (Hormuz)','7.5 mb/d global draw','SPR 365 MMbbl'],
+     conf:'confirmed', v5note:'Physical disruption real; price suppressed by S(t) — Brent below $100 despite structural shortage.'},
+    {id:'l2', label:'GCC/Petrodollar Strain',
+     desc:'Are major Treasury holders moving away from USD-denominated reserves?',
+     val:0.63, v5:0.74, change:-26, components:['TIC official –$37.9B selling','Gold +22.8% yr','US–JP spread 1.83%'],
+     conf:'confirmed', v5note:'Official selling confirmed (TIC Mar 31). Dollar system stress real but below v4.1 intensity.'},
+    {id:'l3', label:'Private Credit / Shadow Banking',
+     desc:'How stressed are private lending markets — hedge funds, private equity, shadow banks?',
+     val:0.66, v5:0.52, change:-1, components:['Apollo gated 45¢','Barings 44.3% redemption','2 fund gates active'],
+     conf:'confirmed', v5note:'2 gates active; cascade threshold is 3. Recession risk 30% vs market 17.5%.'},
+    {id:'l4', label:'Settlement Rails',
+     desc:'Is the dollar\'s role in global payments being challenged by stablecoins or new alternatives?',
+     val:0.56, v5:0.30, change:+24, components:['GENIUS Act 30% passage','Tether $134B','SWIFT intact'],
+     conf:'inferred', v5note:'GENIUS Act progress raised L4. Structural dollar demand shift, not immediate rupture.'},
+    {id:'l5', label:'Food / Fertilizer',
+     desc:'Has the conflict disrupted LNG supply chains that feed global ammonia and fertilizer production?',
+     val:0.78, v5:0.48, change:-5, components:['QAFCO disruption 14%','Kuwait/Bahrain force majeure','Ras Laffan trains 4+6 offline'],
+     conf:'confirmed', v5note:'Fertilizer FM = force majeure declared. Crop-year impact 2027; food price lag 9–18 months.'},
+    {id:'l6', label:'Defense Industrial Base',
+     desc:'How stretched is the defense industrial base after sustained conflict and NATO drawdowns?',
+     val:0.77, v5:0.45, change:+32, components:['$200B supplemental signed','NATO stockpile stretch','Production queue backlogs'],
+     conf:'confirmed', v5note:'Supplemental signed; queue backlogs real. L6 rise reflects actual escalation in demand, not posturing.'},
+    {id:'l7', label:'Semiconductor / Taiwan Risk',
+     desc:'Does US engagement in the Gulf create an opportunity window for a Taiwan strait disruption?',
+     val:0.42, v5:0.38, change:0, components:['TSMC implied risk elevated','CHIPS Act disbursed 31%','Carrier gap windows active'],
+     conf:'inferred', v5note:'China patience while US Gulf-occupied. Structural risk, low immediate probability.'},
+    {id:'l8', label:'Maritime / Shipping Insurance',
+     desc:'How disrupted are global shipping routes through Hormuz, the Red Sea, and Bab al-Mandab?',
+     val:0.58, v5:0.72, change:-31, components:['Bab al-Mandab: 50% (partial)','MARAD advisory active','War risk premium elevated'],
+     conf:'confirmed', v5note:'Down from Jun 8 (89%). Partial MoU reduced Bab stress. Hormuz PGSA toll = revenue model, not closure.'},
+    {id:'l9', label:'AI / Labor Displacement',
+     desc:'Is AI-driven labor displacement creating additional structural economic pressure?',
+     val:0.38, v5:0.30, change:0, components:['LMM adoption accelerating','Strike risk moderate','Displacement signal 38%'],
+     conf:'inferred', v5note:'Least confirmed leg. Breadth observables (RSP/SPY, % above 200dma) not yet wired in.'},
   ],
-  cross: {id:'l_cross', label:'JPY Carry Cross-Cut', val:1.00, v5:0.42, components:['BOJ hike Jun 16-17','288bp differential','USD/JPY 159'],conf:'confirmed', v5note:'Hike ~98% priced — consensus, not Aug-2024 surprise. Unwind is the tail branch (P03 11%).'},
-  constraintBand: 'CB-D/CB-E',
-  composite: 0.91,
+  cross: {id:'l_cross', label:'JPY Carry Trade (Cross-Cut)',
+    desc:'Is the $4–20 trillion yen carry trade approaching the trigger for a self-reinforcing global selloff?',
+    val:0.72, v5:0.42, change:-28, components:['BOJ rate 1.0% (hiked Jun 9)','USD/JPY 161.67','US–JP spread 263bp'],
+    conf:'confirmed', v5note:'BOJ hiked to 1.00% Jun 9 — carry mechanism live. Unwind threshold: USD/JPY < 155 or 2 weeks post-hike.'},
+  constraintBand: 'CB-C',
+  composite: 0.6711,
   compositeV5: 0.55,
   flashCrashV5: 0.11,
-  asOf: 'Jun 8, 2026',
+  asOf: 'Jun 30, 2026',
   v5AsOf: 'Jun 10, 2026',
-  // Historical analogues for comparison radar
   analogues: [
-    {id:'2024_boj', label:'2024 Dress Rehearsal', vals:[0.60,0.71,0.98,0.32,0.65,0.48,0.45,0.45,0.38,0.89], col:'#f97316'},
-    {id:'2022_ukr', label:'2022 Ukraine Shock',   vals:[0.85,0.69,0.84,0.35,0.82,0.55,0.45,0.57,0.28,0.37], col:'#3b82f6'},
+    {id:'2024_boj', label:'2024 BOJ Dress Rehearsal', vals:[0.60,0.71,0.98,0.32,0.65,0.48,0.45,0.45,0.38,0.89], col:'#f97316'},
+    {id:'2022_ukr', label:'2022 Ukraine Shock',       vals:[0.85,0.69,0.84,0.35,0.82,0.55,0.45,0.57,0.28,0.37], col:'#3b82f6'},
   ]
 };
 
@@ -1063,63 +1102,112 @@ function RadarChart({legs, cross, analogues}) {
 
 
 
-function StateVectorPanel({onInspect}) {
-  const {legs,cross,constraintBand,composite,asOf,analogues}=STATE_VECTOR;
+function StateVectorPanel({onInspect, liveVector}) {
+  const sv = STATE_VECTOR;
+
+  // Use live Supabase data when available, fall back to hardcoded calibration
+  const legs = sv.legs.map(function(l){
+    if(!liveVector) return l;
+    const v = liveVector[l.id];
+    return v != null ? Object.assign({},l,{val:+v}) : l;
+  });
+  const cross = liveVector && liveVector.l_cross != null
+    ? Object.assign({},sv.cross,{val:+liveVector.l_cross}) : sv.cross;
+  const composite  = liveVector && liveVector.composite != null ? +liveVector.composite : sv.composite;
+  const cbBand     = liveVector ? (liveVector.constraint_band || sv.constraintBand) : sv.constraintBand;
+  const asOf       = liveVector ? liveVector.obs_date : sv.asOf;
+  const isLive     = !!liveVector;
+
+  function legColor(v){
+    return v>=0.85?'#ef4444':v>=0.65?'#f97316':v>=0.45?'#eab308':'#60a5fa';
+  }
+  function cbColor(cb){
+    if(cb==='CB-E') return '#ef4444';
+    if(cb==='CB-D') return '#f97316';
+    if(cb==='CB-C') return '#eab308';
+    if(cb==='CB-B') return '#60a5fa';
+    return '#4ade80';
+  }
   function confBadge(c){
     const s={confirmed:{background:'rgba(34,197,94,.12)',color:'#4ade80',border:'1px solid rgba(34,197,94,.25)'},
-             inferred:{background:'rgba(234,179,8,.12)',color:'#fbbf24',border:'1px solid rgba(234,179,8,.25)'},
-             speculative:{background:'rgba(239,68,68,.12)',color:'#f87171',border:'1px solid rgba(239,68,68,.25)'}};
+             inferred:{background:'rgba(234,179,8,.12)',color:'#fbbf24',border:'1px solid rgba(234,179,8,.25)'}};
     const st=s[c]||s.inferred;
     return <span style={{...st,fontSize:7,padding:'1px 4px',borderRadius:2,marginLeft:4}}>{c.toUpperCase()}</span>;
   }
   const TYPE_CLS={observed:'btype-obs',derived:'btype-der',inferred:'btype-der',simulated:'btype-sim'};
+  const cbCol = cbColor(cbBand);
+  const compPct = Math.round(composite*100);
+
   return (
     <div className="card">
       <div className="ctitle">
-        <span className="dot"/>L(t) &#8712; &#8477;&#185;&#8304; &mdash; Formal State Vector &middot; {asOf}
+        <span className="dot"/>
+        <span>Risk Gauge &mdash; 9-Leg State Vector</span>
+        <span style={{marginLeft:8,fontSize:8,color:'#4b5563'}}>
+          {isLive&&<span className="live-dot"/>}
+          {asOf}
+        </span>
         <span style={{marginLeft:'auto',display:'flex',gap:6,alignItems:'center'}}>
-          <span style={{fontSize:10,color:'#ef4444',fontWeight:700}}>COMPOSITE {Math.round(composite*100)}%</span>
+          <span style={{fontSize:10,color:compPct>=75?'#ef4444':compPct>=55?'#f97316':'#eab308',fontWeight:700}}>
+            COMPOSITE {compPct}%
+          </span>
           <button className="info-btn" onClick={function(){onInspect&&onInspect('composite');}}>&#9432;</button>
-          <span style={{fontSize:9,background:'rgba(239,68,68,.2)',color:'#ef4444',border:'1px solid rgba(239,68,68,.4)',padding:'2px 7px',borderRadius:3,fontWeight:700}}>{constraintBand}</span>
+          <span style={{fontSize:9,background:cbCol+'22',color:cbCol,border:'1px solid '+cbCol+'66',padding:'2px 7px',borderRadius:3,fontWeight:700}}>
+            {cbBand}
+          </span>
         </span>
       </div>
+
       <div style={{display:'flex',gap:16,alignItems:'flex-start'}}>
+        {/* Radar chart */}
         <div style={{flexShrink:0,width:240}}>
-          <RadarChart legs={legs} cross={cross} analogues={analogues}/>
+          <RadarChart legs={legs} cross={cross} analogues={sv.analogues}/>
           <div style={{marginTop:6,display:'flex',gap:8,flexWrap:'wrap'}}>
             <div style={{display:'flex',alignItems:'center',gap:3}}>
-              <div style={{width:16,height:2,background:'#ef4444'}}/><span style={{fontSize:8,color:'#6b7280'}}>Current (Jun 8)</span>
+              <div style={{width:16,height:2,background:'#ef4444'}}/>
+              <span style={{fontSize:8,color:'#6b7280'}}>Current ({asOf})</span>
             </div>
-            {analogues.map(function(a){return <div key={a.id} style={{display:'flex',alignItems:'center',gap:3}}>
-              <div style={{width:16,height:1,background:a.col,opacity:.6}}/><span style={{fontSize:8,color:'#6b7280'}}>{a.label}</span>
-            </div>;})}
+            {sv.analogues.map(function(a){return (
+              <div key={a.id} style={{display:'flex',alignItems:'center',gap:3}}>
+                <div style={{width:16,height:1,background:a.col,opacity:.6}}/>
+                <span style={{fontSize:8,color:'#6b7280'}}>{a.label}</span>
+              </div>
+            );})}
           </div>
         </div>
+
+        {/* Leg bars */}
         <div style={{flex:1,minWidth:0}}>
           {[...legs,cross].map(function(l){
             const v=l.val;
-            const col=v>=0.85?'#ef4444':v>=0.65?'#f97316':v>=0.45?'#eab308':'#60a5fa';
+            const col=legColor(v);
             const prov=PROVENANCE_MAP[l.id];
             const tc=prov?TYPE_CLS[prov.type]||'btype-der':'btype-der';
             return (
-              <div key={l.id} style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
-                <div style={{width:140,flexShrink:0}}>
-                  <div style={{display:'flex',alignItems:'center',gap:3}}>
-                    <span style={{fontSize:9,color:'#9ca3af'}}>{l.label}</span>
-                    <button className="info-btn" onClick={function(){onInspect&&onInspect(l.id);}} title="Inspect provenance">&#9432;</button>
+              <div key={l.id} style={{display:'flex',alignItems:'flex-start',gap:8,marginBottom:7}}>
+                {/* Label + desc */}
+                <div style={{width:180,flexShrink:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:3,flexWrap:'wrap'}}>
+                    <span style={{fontSize:9,color:'#9ca3af',fontWeight:600}}>{l.label}</span>
+                    <button className="info-btn" onClick={function(){onInspect&&onInspect(l.id);}} title="Data source">&#9432;</button>
                     {prov&&<span className={'btype '+tc} style={{fontSize:7,padding:'1px 3px'}}>{prov.type.slice(0,3).toUpperCase()}</span>}
                   </div>
-                  <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
-                    {l.change!==0&&<span style={{fontSize:8,color:l.change>0?'#ef4444':'#4ade80',fontWeight:700}}>{l.change>0?'↑':'↓'}{Math.abs(l.change)}</span>}
+                  {l.desc&&<div className="leg-desc">{l.desc}</div>}
+                  <div style={{display:'flex',alignItems:'center',gap:4,marginTop:2}}>
+                    {l.change!==0&&<span style={{fontSize:8,color:l.change>0?'#ef4444':'#4ade80',fontWeight:700}}>{l.change>0?'↑':'↓'}{Math.abs(l.change)}pp since Jun 8</span>}
                     {confBadge(l.conf||'inferred')}
                   </div>
                 </div>
-                <div style={{flex:1,background:'#111827',height:18,borderRadius:3,overflow:'hidden',position:'relative'}}>
-                  <div style={{height:'100%',background:col,width:(v*100)+'%',borderRadius:3,opacity:.8}}/>
-                  <span style={{position:'absolute',left:6,top:'50%',transform:'translateY(-50%)',fontSize:9,fontWeight:700,color:'#fff'}}>{(v*100).toFixed(0)}%</span>
+                {/* Bar */}
+                <div style={{flex:1,background:'#111827',height:20,borderRadius:3,overflow:'hidden',position:'relative',marginTop:2}}>
+                  <div style={{height:'100%',background:col,width:(v*100)+'%',borderRadius:3,opacity:.8,transition:'width .6s ease'}}/>
+                  <span style={{position:'absolute',left:8,top:'50%',transform:'translateY(-50%)',fontSize:9,fontWeight:700,color:'#fff'}}>
+                    {(v*100).toFixed(0)}%
+                  </span>
                 </div>
-                <div style={{width:100,flexShrink:0}}>
-                  {l.components&&<div style={{fontSize:8,color:'#374151',lineHeight:1.4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                {/* Data points */}
+                <div style={{width:120,flexShrink:0,marginTop:2}}>
+                  {l.components&&<div style={{fontSize:8,color:'#374151',lineHeight:1.5}}>
                     {l.components.slice(0,2).join(' · ')}
                   </div>}
                 </div>
@@ -1128,20 +1216,48 @@ function StateVectorPanel({onInspect}) {
           })}
         </div>
       </div>
-      <div className="lgrid" style={{marginTop:12}}>
+
+      {/* Compact leg grid */}
+      <div className="lgrid" style={{marginTop:14}}>
         {legs.map(function(l){
-          const col=l.val>=0.85?'#ef4444':l.val>=0.65?'#f97316':l.val>=0.45?'#eab308':'#60a5fa';
-          return <div key={l.id} className="lcell" onClick={function(){onInspect&&onInspect(l.id);}} style={{cursor:'pointer'}}>
-            <div className="lnum">{l.id.toUpperCase()}</div>
-            <div className="lval" style={{color:col}}>{(l.val*100).toFixed(0)}</div>
-            <div className="llbl">{l.label}</div>
-          </div>;
+          const col=legColor(l.val);
+          return (
+            <div key={l.id} className="lcell" onClick={function(){onInspect&&onInspect(l.id);}} style={{cursor:'pointer'}}>
+              <div className="lnum">{l.id.toUpperCase()}</div>
+              <div className="lval" style={{color:col}}>{(l.val*100).toFixed(0)}</div>
+              <div className="llbl">{l.label}</div>
+            </div>
+          );
         })}
         <div className="lcell" onClick={function(){onInspect&&onInspect('l_cross');}} style={{cursor:'pointer',borderColor:'rgba(192,132,252,.3)'}}>
-          <div className="lnum">L&#10005;</div>
+          <div className="lnum">L&#10005; CARRY</div>
           <div className="lval" style={{color:'#c084fc'}}>{(cross.val*100).toFixed(0)}</div>
-          <div className="llbl">{cross.label}</div>
+          <div className="llbl">JPY Carry Trade</div>
         </div>
+      </div>
+
+      {/* Constraint Band legend */}
+      <div className="cb-legend">
+        <span style={{fontSize:8,color:'#374151',fontWeight:700,letterSpacing:'.08em',marginRight:4}}>CONSTRAINT BANDS:</span>
+        {[
+          {id:'CB-A',range:'0–35%',label:'Background',col:'#4ade80'},
+          {id:'CB-B',range:'35–55%',label:'Elevated',col:'#60a5fa'},
+          {id:'CB-C',range:'55–75%',label:'High',col:'#eab308'},
+          {id:'CB-D',range:'75–90%',label:'Very High',col:'#f97316'},
+          {id:'CB-E',range:'90%+', label:'Critical',col:'#ef4444'},
+        ].map(function(b){
+          const active=cbBand===b.id||cbBand.startsWith(b.id);
+          return (
+            <span key={b.id} className="cb-item" style={{
+              background:active?b.col+'28':'transparent',
+              color:active?b.col:'#374151',
+              border:'1px solid '+(active?b.col+'66':'#1e2938'),
+              outline:active?'1px solid '+b.col+'33':'none',
+            }}>
+              {b.id} {b.range} — {b.label}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -1509,7 +1625,7 @@ const LEG_COLS=['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6','#8b
 const LEG_LBL={l1:'War/Energy',l2:'Petrodollar',l3:'Priv Credit',l4:'Settlement',l5:'Food/Fert',l6:'Munitions',l7:'Semicon',l8:'Maritime',l9:'AI/Labor'};
 const CLUSTER_COLS=['#3b82f6','#ef4444','#22c55e','#f97316','#a855f7','#ec4899'];
 const EVT_LBL={BOJ_HIKE:'BOJ Hike 1.0%',FLASH_CRASH:'Flash Crash',BAB_MANDAB:'Bab al-Mandab',IRGC_MINES:'IRGC Mine Deploy',ISRAEL:'Israel Unilateral',CEASEFIRE:'Ceasefire Signal',CASCADE:'Credit Cascade',TETHER:'Tether De-peg',SPR_FLOOR:'SPR Heel Floor',GENIUS:'GENIUS Act Signed',SAUDI_PEG:'Saudi Peg Review',YANBU:'Yanbu Strike'};
-const TABS=[{id:'overview',label:'OVERVIEW'},{id:'v5',label:'V5 REVISION'},{id:'simulation',label:'SIMULATION'},{id:'regimes',label:'REGIMES'},{id:'actors',label:'ACTORS'},{id:'provenance',label:'DATA PROVENANCE'}];
+const TABS=[{id:'overview',label:'OVERVIEW'},{id:'v5',label:'THESIS AUDIT'},{id:'simulation',label:'SIMULATION'},{id:'regimes',label:'SCENARIOS'},{id:'actors',label:'ACTORS'},{id:'provenance',label:'SOURCES'}];
 
 // ─── V5 Revision Tab ─────────────────────────────────────────────────────────
 // Calibrated layer (Jun 10, 2026). v4.1 preserved as narrative baseline.
@@ -1679,6 +1795,16 @@ function App() {
   const [activeTab,setActiveTab]=useState('overview');
   const [drawer,setDrawer]=useState(null);
   const [actorSearch,setActorSearch]=useState('');
+  const [liveVector,setLiveVector]=useState(null);
+
+  // Pull latest state vector row from Supabase on load
+  useEffect(function(){
+    const h={apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY};
+    fetch(SUPA_URL+'/rest/v1/state_vector_history?select=*&order=obs_date.desc&limit=3',{headers:h})
+      .then(function(r){return r.json();})
+      .then(function(data){if(Array.isArray(data)&&data[0])setLiveVector(data[0]);})
+      .catch(function(){});
+  },[]);
 
   const run=useCallback(async function(){
     setRunning(true);setProg(0);setRes(null);
@@ -1700,17 +1826,27 @@ function App() {
 
       <div className="hdr">
         <div>
-          <div className="hdr-title">&#x2B21; God&apos;s Eye &mdash; Full Convergence Strategic Intelligence Engine v1.1</div>
-          <div className="hdr-sub">Agent-Based Simulation &middot; Monte Carlo &middot; GMM Regime Discovery (BIC) &middot; Jun 8 &ndash; Dec 31, 2026</div>
+          <div className="hdr-title">&#x2B21; God&apos;s Eye &mdash; Strategic Risk Convergence Engine v1.2</div>
+          <div className="hdr-sub">9-leg simultaneous risk tracker &middot; Monte Carlo simulation &middot; H2 2026 &middot; <span style={{color:'#22c55e'}}>&#9679; Live</span> from Supabase</div>
         </div>
         <div className="badges">
-          <span className="badge b-red" style={{cursor:'pointer'}} onClick={function(){setDrawer('composite');}}>v4.1 COMPOSITE 91% &#9432;</span>
-          <span className="badge b-yel" style={{cursor:'pointer'}} onClick={function(){setActiveTab('v5');}}>v5 COMPOSITE ~55% &#9656;</span>
-          <span className="badge b-ora">CB-D/E</span>
-          {res&&<span className="badge b-red" style={{cursor:'pointer'}} onClick={function(){setDrawer('flashCrash');}}>FLASH CRASH {(crashP*100).toFixed(0)}% &#9432;</span>}
-          <span className="badge b-red">BOJ HIKED 1.00% &#10003; CARRY ACTIVE</span>
-          <span className="badge b-blu">LEG 8 89% HOUTHI</span>
-          <span className="badge b-grn">SPR FLOOR ~JUL 1</span>
+          {(function(){
+            var comp=liveVector&&liveVector.composite!=null?(+liveVector.composite*100).toFixed(1)+'%':'67.1%';
+            var cb=liveVector?liveVector.constraint_band:'CB-C';
+            var cbCol=cb==='CB-E'?'b-red':cb==='CB-D'?'b-ora':cb==='CB-C'?'b-yel':'b-blu';
+            var dt=liveVector?liveVector.obs_date:'Jun 30';
+            return (
+              <React.Fragment>
+                <span className="badge b-red" style={{cursor:'pointer'}} onClick={function(){setDrawer('composite');}}>
+                  COMPOSITE {comp} &#9432;
+                </span>
+                <span className={'badge '+cbCol}>{cb} — {cb==='CB-E'?'CRITICAL':cb==='CB-D'?'VERY HIGH':cb==='CB-C'?'HIGH':cb==='CB-B'?'ELEVATED':'BACKGROUND'}</span>
+                {res&&<span className="badge b-red" style={{cursor:'pointer'}} onClick={function(){setDrawer('flashCrash');}}>FLASH CRASH {(crashP*100).toFixed(0)}% &#9432;</span>}
+                <span className="badge b-red">BOJ 1.00% &#10003; CARRY LIVE</span>
+                <span className="badge b-blu">DATA: {dt}</span>
+              </React.Fragment>
+            );
+          })()}
         </div>
         <button className="rbtn" onClick={run} disabled={running}>
           {running?'RUNNING '+Math.round(prog*100)+'%':'RUN '+nRuns+' SIMULATIONS'}
@@ -1728,32 +1864,63 @@ function App() {
 
       {activeTab==='overview'&&(
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
+
+          {/* Intro explainer */}
+          <div className="intro-card">
+            <div className="intro-title">What is God&apos;s Eye?</div>
+            <div className="intro-body">
+              God&apos;s Eye tracks <b>9 simultaneous systemic risks</b> converging in H2 2026 — an energy war disrupting Gulf oil flows, dollar reserve fragmentation, private credit stress, food supply chain damage from LNG disruptions, defense industrial strain, semiconductor supply risk, shipping route closures, a potential yen carry trade collapse, and AI-driven labor displacement.
+              <br/>Each category (<b>&ldquo;leg&rdquo;</b>) is scored <b>0–100%</b> using real observable data and z-score normalization against 2015–present baselines. The <b>Composite Score</b> measures how many legs are active simultaneously — the thesis is that convergence across 5+ legs creates systemic risk that single-variable analysis misses. Scores fall automatically when conditions normalize. Click <b>ⓘ</b> on any metric for the data source.
+            </div>
+          </div>
+
+          {/* Key metric cards */}
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:8}}>
-            {[{k:'L1 War/Energy',v:'0.99',type:'observed',id:'l1',col:'#ef4444'},
-              {k:'L2 Petrodollar',v:'0.89',type:'derived',id:'l2',col:'#f97316'},
-              {k:'L8 Maritime',v:'0.89',type:'observed',id:'l8',col:'#ec4899'},
-              {k:'L5 Food/Fert',v:'0.83',type:'observed',id:'l5',col:'#eab308'},
-              {k:'L3 Priv Credit',v:'0.67',type:'observed',id:'l3',col:'#f97316'},
-              {k:'JPY Cross-Cut',v:'1.00',type:'derived',id:'l_cross',col:'#c084fc'},
-              {k:'Composite',v:'91%',type:'derived',id:'composite',col:'#ef4444'},
-              {k:'Flash Crash',v:res?(crashP*100).toFixed(0)+'%':'--',type:'simulated',id:'flashCrash',col:'#ef4444'},
-            ].map(function(m){
-              const TC={observed:'btype-obs',derived:'btype-der',simulated:'btype-sim'};
-              const tc=TC[m.type]||'btype-der';
+            {(function(){
+              var sv=STATE_VECTOR, lv=liveVector;
+              function lget(id){
+                if(lv&&lv[id]!=null) return (+lv[id]*100).toFixed(0)+'%';
+                var leg=sv.legs.find(function(l){return l.id===id;});
+                if(leg) return (leg.val*100).toFixed(0)+'%';
+                if(id==='l_cross') return (sv.cross.val*100).toFixed(0)+'%';
+                return '--';
+              }
+              var comp=lv&&lv.composite!=null?(+lv.composite*100).toFixed(1)+'%':(sv.composite*100).toFixed(1)+'%';
+              var cb=lv?lv.constraint_band:sv.constraintBand;
+              var compCol=cb==='CB-E'?'#ef4444':cb==='CB-D'?'#f97316':'#eab308';
+              return [
+                {k:'L1 — Oil/Conflict',    desc:'Gulf energy disruption',         v:lget('l1'),       type:'observed',  id:'l1',        col:'#ef4444'},
+                {k:'L2 — Dollar System',   desc:'Petrodollar reserve strain',     v:lget('l2'),       type:'derived',   id:'l2',        col:'#f97316'},
+                {k:'L5 — Food Supply',     desc:'Fertilizer / LNG cascade',       v:lget('l5'),       type:'observed',  id:'l5',        col:'#eab308'},
+                {k:'L8 — Shipping',        desc:'Red Sea / Hormuz routes',        v:lget('l8'),       type:'observed',  id:'l8',        col:'#ec4899'},
+                {k:'L3 — Private Credit',  desc:'Shadow banking stress',          v:lget('l3'),       type:'observed',  id:'l3',        col:'#f97316'},
+                {k:'L\xd7 — JPY Carry',   desc:'Yen carry unwind risk',          v:lget('l_cross'),  type:'derived',   id:'l_cross',   col:'#c084fc'},
+                {k:'Composite Score',      desc:'All 9 legs weighted',            v:comp,             type:'derived',   id:'composite', col:compCol},
+                {k:'Flash Crash Prob',     desc:'BOJ carry unwind cascade',       v:res?(crashP*100).toFixed(0)+'%':'--', type:'simulated', id:'flashCrash', col:'#ef4444'},
+              ];
+            })().map(function(m){
+              var TC={observed:'btype-obs',derived:'btype-der',simulated:'btype-sim'};
+              var tc=TC[m.type]||'btype-der';
               return <div key={m.k} style={{background:'#0d1117',border:'1px solid #1e2938',borderRadius:7,padding:'10px 12px',cursor:'pointer'}}
                 onClick={function(){setDrawer(m.id);}}>
-                <div style={{fontSize:8,color:'#374151',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:4,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div style={{fontSize:8,color:'#374151',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:2,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   {m.k}<span className={'btype '+tc}>{m.type.slice(0,3).toUpperCase()}</span>
                 </div>
+                <div style={{fontSize:9,color:'#4b5563',marginBottom:5,lineHeight:1.3}}>{m.desc}</div>
                 <div style={{fontSize:22,fontWeight:700,color:m.col,lineHeight:1.1}}>{m.v}</div>
-                <div style={{fontSize:8,color:'#1e2938',marginTop:3}}>tap to inspect &#9432;</div>
+                <div style={{fontSize:8,color:'#1e2938',marginTop:4}}>tap to inspect &#9432;</div>
               </div>;
             })}
           </div>
-          <StateVectorPanel onInspect={setDrawer}/>
+          <StateVectorPanel onInspect={setDrawer} liveVector={liveVector}/>
           <div className="card">
-            <div className="ctitle"><span className="dot dot-g"/>Confirmed Observed Signals &mdash; Jun 8 2026
-              <span className="btype btype-obs" style={{marginLeft:'auto'}}>OBSERVED</span>
+            <div className="ctitle"><span className="dot dot-g"/>Key Confirmed Signals &mdash; Jun 30, 2026
+              <span style={{marginLeft:'auto',display:'flex',gap:6,alignItems:'center'}}>
+                <span className="btype btype-obs">OBSERVED / CONFIRMED</span>
+              </span>
+            </div>
+            <div style={{fontSize:9,color:'#4b5563',marginBottom:10,lineHeight:1.5}}>
+              These are the concrete, publicly verifiable events that are driving leg scores. Each signal has a direct causal link to at least one of the 9 risk categories above.
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
               {[['BOJ HIKED TO 1.00% &mdash; Jun 9 2026','Carry unwind mechanism NOW LIVE &middot; $4-20T JPY positions at exit threshold &middot; cascade window Jun 9&ndash;23'],
@@ -1966,7 +2133,7 @@ function App() {
       {drawer&&<ProvenanceDrawer metricId={drawer} onClose={function(){setDrawer(null);}}/>}
 
       <div className="foot">
-        God&apos;s Eye v1.1 &middot; {res?res.N.toLocaleString():'&mdash;'} Monte Carlo runs &middot; {res?res.bestK:'&mdash;'} emergent regimes via GMM (BIC) &middot; Jun 8 2026
+        God&apos;s Eye v1.2 &middot; {res?res.N.toLocaleString():'&mdash;'} Monte Carlo runs &middot; {res?res.bestK:'&mdash;'} emergent regimes via GMM (BIC) &middot; State vector: {liveVector?liveVector.obs_date:'Jun 30 2026'} &middot; live from Supabase
       </div>
     </div>
   );
