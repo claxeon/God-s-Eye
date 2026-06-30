@@ -257,5 +257,90 @@ def main():
     print("\nJSON_RESULT:", json.dumps(result))
 
 
+# ── EIA STEO monthly refresh ──────────────────────────────────────────────────
+
+def refresh_steo_if_stale() -> str:
+    """
+    Refresh macro_oil_balance from EIA STEO if the latest WORLD row is >28 days old.
+    EIA publishes STEO on the 7th-10th of each month — check monthly is sufficient.
+    Returns a status string for logging.
+    """
+    EIA_KEY = "6JlB2qAQoHxNGL6kEiiZ6fIRt8cU5FlqR8ReVWYE"
+    h = supa_headers()
+
+    # Check age of latest WORLD row
+    url = SUPA_URL + "/rest/v1/macro_oil_balance?country=eq.WORLD&select=date&order=date.desc&limit=1"
+    latest = curl_get(url, h)
+    if isinstance(latest, list) and latest:
+        from datetime import timedelta
+        latest_date = date.fromisoformat(latest[0]["date"])
+        if (date.today() - latest_date).days < 28:
+            return f"STEO current (latest row: {latest_date})"
+
+    # Fetch PAPR_WORLD and PATC_WORLD from EIA STEO
+    def steo_fetch(series):
+        url = (f"https://api.eia.gov/v2/steo/data/?api_key={EIA_KEY}"
+               f"&frequency=monthly&start=2024-01"
+               f"&data%5B0%5D=value&facets%5BseriesId%5D%5B%5D={series}"
+               f"&sort%5B0%5D%5Bcolumn%5D=period&sort%5B0%5D%5Bdirection%5D=asc")
+        r = subprocess.run(["curl","--max-time","30","-s","-g",url],
+                           capture_output=True, text=True)
+        if not r.stdout.strip():
+            return {}
+        try:
+            d = json.loads(r.stdout)
+            return {row["period"]: float(row["value"])
+                    for row in d["response"]["data"] if row.get("value") not in (None,"")}
+        except Exception:
+            return {}
+
+    prod_w = steo_fetch("PAPR_WORLD")
+    cons_w = steo_fetch("PATC_WORLD")
+    prod_us = steo_fetch("PAPR_US")
+    cons_us = steo_fetch("PATC_US")
+
+    if not prod_w or not cons_w:
+        return "STEO refresh FAILED — EIA API unreachable"
+
+    rows = []
+    for m in sorted(set(prod_w) & set(cons_w)):
+        p, c = prod_w[m], cons_w[m]
+        rows.append({"date": f"{m}-01", "country": "WORLD",
+                     "prod_mbd": round(p, 4),
+                     "net_imports_mbd": round(c - p, 4),
+                     "apparent_demand_mbd": round(c, 4),
+                     "source_tag": "EIA_STEO"})
+    for m in sorted(set(prod_us) & set(cons_us)):
+        p, c = prod_us[m], cons_us[m]
+        rows.append({"date": f"{m}-01", "country": "US",
+                     "prod_mbd": round(p, 4),
+                     "net_imports_mbd": round(c - p, 4),
+                     "apparent_demand_mbd": round(c, 4),
+                     "source_tag": "EIA_STEO"})
+
+    if not rows:
+        return "STEO refresh — no rows computed"
+
+    # Batch upsert via Supabase REST API (merge-duplicates = ON CONFLICT UPDATE)
+    url = SUPA_URL + "/rest/v1/macro_oil_balance"
+    r = subprocess.run(
+        ["curl","-s","--max-time","60","-X","POST",
+         "-H","Content-Type: application/json",
+         "-H",f"apikey: {SUPA_KEY}",
+         "-H",f"Authorization: Bearer {SUPA_KEY}",
+         "-H","Prefer: resolution=merge-duplicates,return=minimal",
+         "-d", json.dumps(rows),
+         url],
+        capture_output=True, text=True
+    )
+    if r.returncode == 0:
+        return f"STEO refreshed: {len(rows)} rows upserted"
+    return f"STEO refresh FAILED: {r.stderr[:80]}"
+
+
 if __name__ == "__main__":
+    # Refresh STEO monthly data before Polymarket snapshot
+    print("\n  Checking EIA STEO freshness...")
+    steo_status = refresh_steo_if_stale()
+    print(f"  {steo_status}\n")
     main()
