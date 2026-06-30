@@ -29,6 +29,7 @@ Usage:
 """
 
 import os
+import sys
 import json
 import math
 import argparse
@@ -36,6 +37,14 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List
+
+_JSON_MODE = False  # set True by --json flag; routes progress prints to stderr
+
+def log(*args, **kwargs):
+    """Progress print — goes to stderr in --json mode so stdout stays clean JSON."""
+    if _JSON_MODE:
+        kwargs.setdefault("file", sys.stderr)
+    print(*args, **kwargs)
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -461,13 +470,20 @@ if __name__ == "__main__":
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     args = parser.parse_args()
 
+    _JSON_MODE = args.json  # module-level flag — no global keyword needed at module scope
     target = date.fromisoformat(args.date)
-    print(f"\n  God's Eye State Vector — {target}")
 
+    # In --json mode, redirect all progress output to stderr so stdout is clean JSON
+    _real_stdout = sys.stdout
+    if args.json:
+        sys.stdout = sys.stderr
+
+    print(f"\n  God's Eye State Vector — {target}")
     components = get_components(target)
     L, details = compute_state_vector(components)
 
     if args.json:
+        sys.stdout = _real_stdout
         print(json.dumps({"date": str(target), "vector": L, "details": details}, indent=2))
     else:
         print_vector(L, details)
