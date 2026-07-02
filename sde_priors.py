@@ -172,6 +172,21 @@ def main():
             "series_id": f"SDE_{sid}", "estimation_window_start": fit["start"],
             "estimation_window_end": fit["end"], "mu": fit["mu_ann"],
             "sigma": fit["sigma_ann"], "n_obs": fit["n_obs"], "weight": 1.0})
+        # _REGIME row (consumed by gods_eye_engine._update_macro, P-035):
+        #   mu = stationary high-vol fraction, sigma = high-regime ann vol,
+        #   weight = mean episode duration in DAYS (repurposed field, documented)
+        params_rows.append({
+            "series_id": f"SDE_{sid}_REGIME", "estimation_window_start": fit["start"],
+            "estimation_window_end": fit["end"], "mu": fit["regime_hi_frac"],
+            "sigma": fit["regime_hi_sigma_ann"], "n_obs": fit["n_obs"],
+            "weight": fit["regime_hi_mean_duration_d"] or 16.0})
+        # _JUMP row (stored for validation; NOT consumed by engine — event system
+        # already produces jumps, adding SDE jumps would double-count):
+        #   mu = jumps/year (|ret|>3σ), sigma = mean abs jump size
+        params_rows.append({
+            "series_id": f"SDE_{sid}_JUMP", "estimation_window_start": fit["start"],
+            "estimation_window_end": fit["end"], "mu": fit["jump_intensity_per_yr"],
+            "sigma": fit["jump_mean_abs"], "n_obs": fit["n_obs"], "weight": 1.0})
         print(f"  {sid}: n={fit['n_obs']} mu={fit['mu_ann']:+.3f} sig={fit['sigma_ann']:.3f} "
               f"jumps/yr={fit['jump_intensity_per_yr']} hi-regime sig={fit['regime_hi_sigma_ann']}",
               file=sys.stderr)

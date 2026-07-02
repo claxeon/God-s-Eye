@@ -37,12 +37,71 @@ import random
 import math
 import json
 import argparse
+import subprocess
 import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import date, timedelta
 from enum import Enum
 from copy import deepcopy
+
+# ── Calibrated priors (P-035) ─────────────────────────────────────────────────
+# Market-noise parameters are fetched from Supabase calibration_params (written
+# by sde_priors.py from full FRED history) at startup, with these hand-set
+# values as offline fallback. SCOPE: only the MARKET-NOISE layer is calibrated —
+# actor event probabilities (mine_prob, bab_prob, ...) are conditional
+# mechanisms that ARE the framework's thesis and have no historical analogue;
+# they stay hand-set and are validated through the prediction Brier record
+# instead. Endogenous price JUMPS are deliberately NOT added: the agent/event
+# system already produces them; adding SDE jumps would double-count.
+
+_CALIB_DEFAULTS = {
+    "SDE_DCOILBRENTEU":         {"mu": 0.034, "sigma": 0.403},   # ann log-ret
+    "SDE_DCOILBRENTEU_REGIME":  {"mu": 0.25,  "sigma": 0.624, "weight": 16.0},
+    "SDE_DEXJPUS":              {"mu": -0.014, "sigma": 0.101},
+    "SDE_DEXJPUS_REGIME":       {"mu": 0.25,  "sigma": 0.132, "weight": 17.1},
+    "SDE_VIXCLS":               {"mu": -0.001, "sigma": 1.081},
+    "SDE_VIXCLS_REGIME":        {"mu": 0.25,  "sigma": 1.400, "weight": 18.3},
+}
+CALIB: Dict[str, Dict[str, float]] = {k: dict(v) for k, v in _CALIB_DEFAULTS.items()}
+CALIB_SOURCE = "fallback (hand-set defaults)"
+
+
+def load_calibrated_priors(quiet: bool = False) -> None:
+    """Fetch calibration_params via Supabase REST; fall back silently offline."""
+    global CALIB_SOURCE
+    url = ("https://snykuqyceqpplnzmyksp.supabase.co/rest/v1/calibration_params"
+           "?select=series_id,mu,sigma,weight&series_id=like.SDE_*")
+    key = "sb_publishable_TJg65x5w56CulOEdWFJNyQ_89loJtit"
+    try:
+        r = subprocess.run(["curl", "-s", "--max-time", "8", url,
+                            "-H", f"apikey: {key}",
+                            "-H", f"Authorization: Bearer {key}"],
+                           capture_output=True, text=True)
+        rows = json.loads(r.stdout)
+        loaded = 0
+        for row in rows:
+            sid = row["series_id"]
+            if sid in CALIB:
+                CALIB[sid] = {"mu": float(row["mu"]), "sigma": float(row["sigma"]),
+                              "weight": float(row.get("weight") or 1.0)}
+                loaded += 1
+        if loaded:
+            CALIB_SOURCE = f"calibration_params ({loaded} series, Supabase)"
+    except Exception:
+        pass  # offline: defaults stand
+    if not quiet:
+        print(f"  Market-noise priors: {CALIB_SOURCE}")
+        b, br = CALIB["SDE_DCOILBRENTEU"], CALIB["SDE_DCOILBRENTEU_REGIME"]
+        print(f"    Brent ann vol {b['sigma']:.1%} (hi-regime {br['sigma']:.1%}, "
+              f"{br['mu']:.0%} of time, ~{br.get('weight',16)/7:.1f}wk episodes) — "
+              f"prev hand-set noise implied ~22% ann")
+        j = CALIB["SDE_DEXJPUS"]
+        print(f"    USD/JPY ann vol {j['sigma']:.1%} — prev hand-set implied ~2% ann")
+
+
+def _wk(sigma_ann: float) -> float:
+    return sigma_ann / math.sqrt(52.0)
 
 # ── Simulation parameters ─────────────────────────────────────────────────────
 
@@ -153,6 +212,7 @@ class WorldState:
     hormuz_status:        HormuzStatus  = HormuzStatus.TOLL
     constraint_band:      ConstraintBand = ConstraintBand.CB_D
     pgsa_active:          bool = True
+    vol_regime_hi:        bool = False   # P-035: calibrated 2-state vol regime
 
     # ── Event flags (irreversible once set) ──
     boj_hiked:            bool = False
@@ -1203,7 +1263,32 @@ def _event_priority(etype: EventType) -> int:
 
 
 def _update_macro(state: WorldState, rng: random.Random):
-    """Weekly macro variable drift."""
+    """Weekly macro variable drift.
+
+    P-035: mean-reversion TARGETS and speeds are framework theses (hand-set,
+    unchanged); NOISE scales come from CALIB (fitted on full FRED history) with
+    a calibrated 2-state vol regime. Prev hand-set noise was ~1.8x too small on
+    Brent/VIX and ~4.5x too small on USD/JPY vs 1971-2026 history.
+    """
+    # ── Vol regime transition (calibrated: stationary frac + mean duration) ──
+    reg = CALIB["SDE_DCOILBRENTEU_REGIME"]
+    frac = max(0.01, min(0.9, reg["mu"]))
+    dur_wk = max(1.0, reg.get("weight", 16.0) / 7.0)   # weight = duration in days
+    p_exit = 1.0 / dur_wk
+    p_enter = p_exit * frac / (1.0 - frac)
+    if state.vol_regime_hi:
+        if rng.random() < p_exit:  state.vol_regime_hi = False
+    else:
+        if rng.random() < p_enter: state.vol_regime_hi = True
+    # Stress states force the high-vol regime (framework coupling, not data)
+    if (state.flash_crash_occurred or state.hormuz_status == HormuzStatus.CLOSED
+            or state.bab_al_mandab_closed or state.yanbu_struck):
+        state.vol_regime_hi = True
+
+    def _sig(series: str) -> float:
+        base, hi = CALIB[series]["sigma"], CALIB[series + "_REGIME"]["sigma"]
+        return _wk(hi if state.vol_regime_hi else base)
+
     # Brent: structural floor from supply destruction; mean-reversion toward $115-125
     target = 120.0
     if state.hormuz_status == HormuzStatus.CLOSED:   target = 165.0
@@ -1212,20 +1297,22 @@ def _update_macro(state: WorldState, rng: random.Random):
     if state.ceasefire_active:                        target = 98.0
     if state.hormuz_status == HormuzStatus.PARTIAL:   target = 98.0
 
-    noise = rng.gauss(0, 3.0)
+    noise = state.brent_price * rng.gauss(0, _sig("SDE_DCOILBRENTEU"))
     state.brent_price += (target - state.brent_price) * 0.08 + noise
     state.brent_price = max(55.0, min(250.0, state.brent_price))
 
-    # VIX mean-reversion
+    # VIX mean-reversion (calibrated log-noise scale)
     vix_target = 18.0 if not state.flash_crash_occurred else 35.0
-    state.vix   += (vix_target - state.vix) * 0.12 + rng.gauss(0, 1.5)
+    state.vix   += (vix_target - state.vix) * 0.12 + state.vix * rng.gauss(0, _sig("SDE_VIXCLS"))
     state.vix    = max(12.0, min(90.0, state.vix))
 
-    # USD/JPY: structural yen appreciation after BOJ hike
+    # USD/JPY: structural yen appreciation after BOJ hike (drift = framework thesis;
+    # noise scale = calibrated)
+    jpy_noise = state.usd_jpy * rng.gauss(0, _sig("SDE_DEXJPUS"))
     if state.boj_hiked:
-        state.usd_jpy += rng.gauss(-0.3, 0.8)
+        state.usd_jpy += -0.3 + jpy_noise
     else:
-        state.usd_jpy += rng.gauss(0.1, 0.5)
+        state.usd_jpy += 0.1 + jpy_noise
     state.usd_jpy = max(130.0, min(170.0, state.usd_jpy))
 
     # 10Y yield: structural climb post-flash crash
@@ -2075,7 +2162,10 @@ def main():
         print(f"\n  Initializing God's Eye simulation engine...")
         print(f"  {args.simulations:,} Monte Carlo runs × {WEEKLY_STEPS} weekly steps")
         print(f"  Horizon: {SIM_START} → {SIM_END}")
-        print(f"  Actors: 12 agents | 7 coupling rules | 5 scenarios\n")
+        print(f"  Actors: 12 agents | 7 coupling rules | 5 scenarios")
+    load_calibrated_priors(quiet=args.quiet)
+    if not args.quiet:
+        print()
 
     runner  = MonteCarloRunner(n_runs=args.simulations, seed=args.seed)
     results = runner.run()
