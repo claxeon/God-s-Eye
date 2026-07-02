@@ -103,6 +103,124 @@ def load_calibrated_priors(quiet: bool = False) -> None:
 def _wk(sigma_ann: float) -> float:
     return sigma_ann / math.sqrt(52.0)
 
+
+# ── Live initial state (P-036) ────────────────────────────────────────────────
+# Seeds WorldState from live state_vector_history (legs) + FRED spot (macro) +
+# strategic_inventories (SPR) instead of the hardcoded Jun 8 snapshot, and moves
+# the simulation start to today. Event flags reflect the confirmed post-Jun-8
+# record: BOJ hiked to 1.0% (Jun 16), ceasefire/MoU active with PGSA tolling,
+# TIC selling confirmed (P07 TRUE), flash crash falsified (P03-P05 FALSE).
+# --static restores the frozen Jun 8 baseline for reproducibility.
+
+LIVE_SEED: Optional[Dict[str, Any]] = None
+_SUPA = "https://snykuqyceqpplnzmyksp.supabase.co/rest/v1"
+_SUPA_KEY = "sb_publishable_TJg65x5w56CulOEdWFJNyQ_89loJtit"
+
+
+def _rest_get(path: str) -> Optional[Any]:
+    try:
+        r = subprocess.run(["curl", "-s", "--max-time", "8", _SUPA + path,
+                            "-H", f"apikey: {_SUPA_KEY}",
+                            "-H", f"Authorization: Bearer {_SUPA_KEY}"],
+                           capture_output=True, text=True)
+        return json.loads(r.stdout)
+    except Exception:
+        return None
+
+
+def _fred_spot(series: str) -> Optional[float]:
+    try:
+        r = subprocess.run(["curl", "-s", "--max-time", "15",
+                            f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}"],
+                           capture_output=True, text=True)
+        for line in reversed(r.stdout.strip().split("\n")[1:]):
+            p = line.split(",")
+            if len(p) == 2 and p[1].strip() not in ("", "."):
+                return float(p[1])
+    except Exception:
+        pass
+    return None
+
+
+def load_live_seed(quiet: bool = False) -> None:
+    """Populate LIVE_SEED from live sources; None on total failure (static fallback)."""
+    global LIVE_SEED, SIM_START, WEEKLY_STEPS
+    legs_rows = _rest_get("/state_vector_history?select=obs_date,l1,l2,l3,l4,l5,"
+                          "l6,l7,l8,l9,l_cross,composite&order=obs_date.desc&limit=1")
+    if not isinstance(legs_rows, list) or not legs_rows:
+        if not quiet:
+            print("  Live seed: UNAVAILABLE (state_vector_history unreachable) — "
+                  "using static Jun 8 baseline")
+        return
+    lv = legs_rows[0]
+    seed: Dict[str, Any] = {"obs_date": lv["obs_date"], "leg_scores": {}}
+    for i in range(1, 10):
+        v = lv.get(f"l{i}")
+        if v is not None:
+            seed["leg_scores"][f"leg_{i}"] = float(v)
+    if lv.get("l_cross") is not None:
+        seed["leg_scores"]["cross"] = float(lv["l_cross"])
+    seed["composite"] = float(lv["composite"]) if lv.get("composite") else None
+
+    for field_name, series in (("brent_price", "DCOILBRENTEU"),
+                               ("usd_jpy", "DEXJPUS"), ("vix", "VIXCLS"),
+                               ("us_10y_yield", "DGS10")):
+        v = _fred_spot(series)
+        if v is not None:
+            seed[field_name] = v
+
+    # SPR from weekly EIA data (crude_inventories_weekly is current; the
+    # monthly strategic_inventories table lags by months)
+    spr_rows = _rest_get("/crude_inventories_weekly"
+                         "?select=week_ending,spr_kb&order=week_ending.desc&limit=1")
+    if isinstance(spr_rows, list) and spr_rows and spr_rows[0].get("spr_kb"):
+        seed["spr_mmbbl"] = float(spr_rows[0]["spr_kb"]) / 1000.0
+
+    LIVE_SEED = seed
+    today = date.today()
+    if today > SIM_START and (SIM_END - today).days >= 28:
+        SIM_START = today
+        WEEKLY_STEPS = (SIM_END - SIM_START).days // 7
+    if not quiet:
+        print(f"  Live seed: state vector {seed['obs_date']} "
+              f"(composite {seed.get('composite')}), "
+              f"Brent ${seed.get('brent_price', '?')}, "
+              f"USD/JPY {seed.get('usd_jpy', '?')}, VIX {seed.get('vix', '?')}, "
+              f"SPR {seed.get('spr_mmbbl', '?')}mmbbl | horizon {SIM_START} → "
+              f"{SIM_END} ({WEEKLY_STEPS} wks)")
+
+
+def apply_live_seed(state: "WorldState", agents: List[Any]) -> None:
+    """Override the Jun 8 defaults with live values + confirmed event record."""
+    if LIVE_SEED is None:
+        return
+    for leg, v in LIVE_SEED["leg_scores"].items():
+        state.leg_scores[leg] = v
+    for f in ("brent_price", "usd_jpy", "vix", "us_10y_yield", "spr_mmbbl"):
+        if f in LIVE_SEED:
+            setattr(state, f, LIVE_SEED[f])
+    # Confirmed post-Jun-8 record (vault: G-011 precedent, Jun 30 audit, P07):
+    state.boj_rate = 1.0
+    state.boj_hiked = True
+    state.carry_unwind_active = True
+    state.flash_crash_occurred = False          # falsified (P03-P05 FALSE)
+    state.ceasefire_active = True               # MoU Jun 17; escalation 0.35
+    state.hormuz_status = HormuzStatus.TOLL     # PGSA institutional tolling
+    state.israel_struck = True                  # post-signing strikes confirmed
+    state.tic_selling_confirmed = True          # P07 resolved TRUE
+    comp = LIVE_SEED.get("composite")
+    if comp is not None:
+        state.constraint_band = (ConstraintBand.CB_E if comp >= 0.90 else
+                                 ConstraintBand.CB_D if comp >= 0.75 else
+                                 ConstraintBand.CB_C)
+    # Pre-fire BOJ agent so the Jun 16 hike doesn't re-fire mid-simulation
+    for a in agents:
+        if isinstance(a, JapanBOJ):
+            a.hike_fired = True
+            a.hike_week_actual = 0
+            a.unwind_fired = True
+            a.distributing_ust = True
+
 # ── Simulation parameters ─────────────────────────────────────────────────────
 
 SIM_START      = date(2026, 6, 8)
@@ -1403,8 +1521,10 @@ class MonteCarloRunner:
             FoodFertilizerMechanism(),
         ]
 
-        # Initial world state (confirmed data as of June 8, 2026)
+        # Initial world state: live seed (P-036) when available, else the
+        # frozen Jun 8 snapshot (--static or fetch failure)
         state = WorldState(week=0, date=SIM_START)
+        apply_live_seed(state, agents)
 
         # Add small noise to initial macro variables
         state.brent_price  += rng.gauss(0, 2.5)
@@ -2156,6 +2276,8 @@ def main():
                         help="Suppress summary output")
     parser.add_argument("--sensitivity", action="store_true",
                         help="Run sensitivity analysis (sweeps key params ±20-30%)")
+    parser.add_argument("--static", action="store_true",
+                        help="Skip live seeding; reproduce the frozen Jun 8 baseline")
     args = parser.parse_args()
 
     if not args.quiet:
@@ -2164,6 +2286,10 @@ def main():
         print(f"  Horizon: {SIM_START} → {SIM_END}")
         print(f"  Actors: 12 agents | 7 coupling rules | 5 scenarios")
     load_calibrated_priors(quiet=args.quiet)
+    if not args.static:
+        load_live_seed(quiet=args.quiet)
+    elif not args.quiet:
+        print("  Live seed: SKIPPED (--static) — frozen Jun 8 baseline")
     if not args.quiet:
         print()
 
