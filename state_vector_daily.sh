@@ -22,8 +22,20 @@ cd "$SCRIPT_DIR"
 # Step 1: Physical inventory tracker — runs first so state vector can read from Supabase
 python3 inventory_tracker.py 1>&2 || true
 
+# Step 1.5: Market mechanics — COT + EIA flows + physical-financial divergence
+python3 market_mechanics.py 1>&2 || true
+
+# Step 1.6: Yen mechanics — USD/JPY key levels + CFTC IMM + BOJ rate dilemma
+python3 yen_mechanics.py 1>&2 || true
+
 # Step 2: Polymarket snapshot + STEO refresh + data condition checks
 python3 polymarket_snapshot.py 1>&2 || true
+
+# Step 2.5: Kalman-filtered L(t) — writes state_vector_filtered directly (P-034).
+# Runs BEFORE state_vector_compute so today's raw row (inserted by the trigger
+# after this script) appears in the NEXT day's filter input; filter output for
+# today is based on history through yesterday plus predict step — documented lag.
+python3 kalman_lt.py 1>&2 || true
 
 # Step 3: State vector — JSON to stdout for trigger to parse
 exec python3 state_vector_compute.py --date "$(date +%Y-%m-%d)" --json

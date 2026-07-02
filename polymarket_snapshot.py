@@ -22,7 +22,7 @@ SUPA_URL  = "https://snykuqyceqpplnzmyksp.supabase.co"
 SUPA_KEY  = "sb_publishable_TJg65x5w56CulOEdWFJNyQ_89loJtit"
 POLY_BASE = "https://gamma-api.polymarket.com/markets"
 FRED_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id="
-EIA_KEY   = os.environ.get("EIA_API_KEY", "6JlB2qAQoHxNGL6kEiiZ6fIRt8cU5FlqR8ReVWYE")
+EIA_KEY   = os.environ.get("EIA_API_KEY", "")
 TODAY     = date.today().isoformat()
 
 
@@ -429,7 +429,6 @@ def refresh_steo_if_stale() -> str:
     EIA publishes STEO on the 7th-10th of each month — check monthly is sufficient.
     Returns a status string for logging.
     """
-    EIA_KEY = "6JlB2qAQoHxNGL6kEiiZ6fIRt8cU5FlqR8ReVWYE"
     h = supa_headers()
 
     # Check age of latest WORLD row
