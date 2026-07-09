@@ -501,11 +501,89 @@ def refresh_steo_if_stale() -> str:
     return f"STEO refresh FAILED: {r.stderr[:80]}"
 
 
+def refresh_brent6m_if_stale() -> str:
+    """
+    Monthly brent_6m PROXY from EIA STEO BREPUUS (G-012, closes B-002).
+    Writes the end-of-current-month oil_market_pricing row with
+    brent_6m = current STEO vintage's forecast for month(t)+6 and
+    brent_front = FRED Brent spot (falls back to BREPUUS month t).
+    source_tag='EIA_STEO_proxy' ALWAYS — a forecast slope is not market
+    term structure; the SPR regression must be able to filter on it.
+
+    Vintage freeze rule (brief 2026-07-07-G-001): month t is written during
+    month t and never recomputed from later vintages — if this month's row
+    already has brent_6m from ANY source, skip. Non-proxy rows are never
+    overwritten (also enforced by RLS: anon may only update proxy rows).
+    """
+    import calendar
+    h = supa_headers()
+    today = date.today()
+    eom = date(today.year, today.month,
+               calendar.monthrange(today.year, today.month)[1]).isoformat()
+
+    existing = curl_get(SUPA_URL + "/rest/v1/oil_market_pricing"
+                        f"?date=eq.{eom}&select=brent_6m,source_tag", h)
+    if isinstance(existing, list) and existing:
+        row = existing[0]
+        if row.get("brent_6m") is not None:
+            return f"brent_6m current for {eom} (source: {row.get('source_tag')})"
+        if row.get("source_tag") != "EIA_STEO_proxy":
+            return (f"brent_6m SKIPPED for {eom} — non-proxy row present "
+                    f"(source: {row.get('source_tag')}), will not touch")
+
+    url = (f"https://api.eia.gov/v2/steo/data/?api_key={EIA_KEY}"
+           f"&frequency=monthly&start={today.year}-01"
+           f"&data%5B0%5D=value&facets%5BseriesId%5D%5B%5D=BREPUUS"
+           f"&sort%5B0%5D%5Bcolumn%5D=period&sort%5B0%5D%5Bdirection%5D=asc")
+    r = subprocess.run(["curl", "--max-time", "30", "-s", "-g", url],
+                       capture_output=True, text=True)
+    try:
+        vintage = {row["period"]: float(row["value"])
+                   for row in json.loads(r.stdout)["response"]["data"]
+                   if row.get("value") not in (None, "")}
+    except Exception:
+        return "brent_6m refresh FAILED — STEO BREPUUS unreachable/unparseable"
+
+    m6 = today.month + 6
+    target = f"{today.year + (m6 - 1) // 12:04d}-{(m6 - 1) % 12 + 1:02d}"
+    val6 = vintage.get(target)
+    if val6 is None:
+        return f"brent_6m refresh FAILED — no BREPUUS value for {target} in current vintage"
+
+    front = _fred_latest("DCOILBRENTEU")
+    front_src = "FRED spot"
+    if front is None:
+        front = vintage.get(f"{today.year:04d}-{today.month:02d}")
+        front_src = "BREPUUS month-t forecast (FRED unavailable)"
+    if front is None:
+        return "brent_6m refresh FAILED — no front leg available"
+
+    body = json.dumps([{"date": eom, "brent_front": round(front, 2),
+                        "brent_6m": round(val6, 2),
+                        "source_tag": "EIA_STEO_proxy"}])
+    w = subprocess.run(
+        ["curl", "-s", "--max-time", "30", "-X", "POST",
+         "-H", f"apikey: {SUPA_KEY}", "-H", f"Authorization: Bearer {SUPA_KEY}",
+         "-H", "Content-Type: application/json",
+         "-H", "Prefer: resolution=merge-duplicates,return=minimal",
+         "-d", body, SUPA_URL + "/rest/v1/oil_market_pricing?on_conflict=date"],
+        capture_output=True, text=True)
+    if w.returncode == 0 and not w.stdout.strip():
+        return (f"brent_6m proxy upserted for {eom}: front={front:.2f} ({front_src}), "
+                f"6m={val6:.2f} (BREPUUS {target}), spread={front - val6:+.2f}")
+    return f"brent_6m refresh FAILED — REST write: {w.stdout[:120]}"
+
+
 if __name__ == "__main__":
     # 1. Refresh STEO monthly data
     print("\n  Checking EIA STEO freshness...")
     steo_status = refresh_steo_if_stale()
     print(f"  {steo_status}\n")
+
+    # 1.5 Refresh brent_6m STEO proxy (G-012 / B-002)
+    print("  Checking brent_6m proxy freshness...")
+    brent6m_status = refresh_brent6m_if_stale()
+    print(f"  {brent6m_status}\n")
 
     # 2. Polymarket snapshot for open predictions with slugs
     main()
