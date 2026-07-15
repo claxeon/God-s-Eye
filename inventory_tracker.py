@@ -143,7 +143,7 @@ def upsert_rows(rows: list) -> bool:
          "-H", f"Authorization: Bearer {SUPA_KEY}",
          "-H", "Prefer: resolution=merge-duplicates,return=minimal",
          "-d", json.dumps(rows),
-         SUPA_URL + "/rest/v1/inventory_levels"],
+         SUPA_URL + "/rest/v1/inventory_levels?on_conflict=as_of_date,series_id"],
         capture_output=True, text=True
     )
     return r.returncode == 0

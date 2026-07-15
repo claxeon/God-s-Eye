@@ -39,7 +39,8 @@ from typing import Optional, Dict, List
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-EIA_KEY      = os.environ.get("EIA_API_KEY", "6JlB2qAQoHxNGL6kEiiZ6fIRt8cU5FlqR8ReVWYE")
+EIA_KEY      = os.environ.get("EIA_API_KEY", "")
+# SECURITY: EIA_API_KEY must be set via env var. Key in Framework/State Vector Definition.md needs rotation.
 FRED_BASE    = "https://fred.stlouisfed.org/graph/fredgraph.csv?id="
 EIA_BASE     = "https://api.eia.gov/v2"
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://snykuqyceqpplnzmyksp.supabase.co")
@@ -169,8 +170,9 @@ def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[flo
     if len(spr_rows) >= 2:
         latest = float(spr_rows[-1]["value"])
         prev   = float(spr_rows[-2]["value"])
-        c["spr_draw_rate"] = (latest - prev) / 7 / 1000  # kb/wk → mb/d
-        print(f"    SPR draw rate: {c['spr_draw_rate']:.2f} mb/d")
+        # Inverted: negative Δ (draw) → positive stress direction
+        c["spr_draw_rate"] = -(latest - prev) / 7 / 1000
+        print(f"    SPR draw rate: {c['spr_draw_rate']:.2f} mb/d (positive = drawing = stress)")
     else:
         c["spr_draw_rate"] = None
 
@@ -196,9 +198,10 @@ def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[flo
     # ── L2: Petrodollar ───────────────────────────────────────────────────────
     print("  L2 — GCC/Petrodollar Strain")
 
-    # TIC official flow: latest confirmed -$37.9B March; use confirmed value
-    c["tic_official_flow"] = -37.9  # inverted: selling = positive stress
-    print(f"    TIC official flow: -$37.9B (March confirmed)")
+    # TIC official flow: latest confirmed -$37.9B March.
+    # Inverted: selling (actual -37.9) → stored positive for stress direction.
+    c["tic_official_flow"] = 37.9
+    print(f"    TIC official flow: -$37.9B actual → +37.9 stress signal (March confirmed)")
 
     # Gold 12M return
     try:
@@ -243,8 +246,8 @@ def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[flo
 
     # SOFR-OIS spread from FRED
     sofr = fred_latest("SOFR")
-    ois  = fred_latest("SOFR1")  # Approximate with overnight SOFR
-    c["sofr_ois_spread"] = (sofr - ois) * 100 if (sofr and ois) else None
+    effr = fred_latest("DFF")   # Daily effective fed funds rate = OIS proxy
+    c["sofr_ois_spread"] = (sofr - effr) * 100 if (sofr and effr) else None
 
     # ── L4: Settlement Rails ──────────────────────────────────────────────────
     print("  L4 — Settlement/Stablecoin")
@@ -288,9 +291,9 @@ def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[flo
     c["usd_jpy"] = jpy
     print(f"    USD/JPY: {jpy:.1f}" if jpy else "    USD/JPY: unavailable")
 
-    # BOJ rate (confirmed 0.75%)
-    c["boj_rate"] = 0.75
-    print(f"    BOJ rate: 0.75% (confirmed)")
+    # BOJ rate — confirmed 1.0% after Jun 16 hike (25bp from 0.75%)
+    c["boj_rate"] = 1.0
+    print(f"    BOJ rate: 1.0% (confirmed Jun 16 hike)")
 
     # Fed Funds rate from FRED
     fed = fred_latest("FEDFUNDS")
@@ -379,7 +382,15 @@ def compute_state_vector(components: Dict) -> Dict:
     return L, details
 
 
-def store_to_supabase(L: Dict, obs_date: date):
+def _constraint_band(composite: float) -> str:
+    if composite >= 0.90: return "CB-E"
+    if composite >= 0.75: return "CB-D"
+    if composite >= 0.55: return "CB-C"
+    if composite >= 0.35: return "CB-B"
+    return "CB-A"
+
+
+def store_to_supabase(L: Dict, details: Dict, obs_date: date):
     """Store computed L(t) to Supabase state_vector_history."""
     if not SUPABASE_KEY:
         print("\n  Supabase key not set — skipping storage")
@@ -387,15 +398,24 @@ def store_to_supabase(L: Dict, obs_date: date):
     try:
         from supabase import create_client
         sb = create_client(SUPABASE_URL, SUPABASE_KEY)
+        band = _constraint_band(L["composite"])
         sb.table("state_vector_history").upsert({
-            "obs_date":      str(obs_date),
-            "l1": L["l1"],  "l2": L["l2"],  "l3": L["l3"],
-            "l4": L["l4"],  "l5": L["l5"],  "l6": L["l6"],
-            "l7": L["l7"],  "l8": L["l8"],  "l9": L["l9"],
-            "l_cross": L["l_cross"],
-            "notes": f"Computed {datetime.now().isoformat()}"
+            "obs_date":        str(obs_date),
+            "l1":  L["l1"],  "l2": L["l2"],  "l3": L["l3"],
+            "l4":  L["l4"],  "l5": L["l5"],  "l6": L["l6"],
+            "l7":  L["l7"],  "l8": L["l8"],  "l9": L["l9"],
+            "l_cross":         L["l_cross"],
+            "constraint_band": band,
+            "notes": json.dumps({
+                "computed_at": datetime.now().isoformat(),
+                "engine": "state_vector_compute.py",
+                "coverage": {
+                    k: {c: v.get("value") for c, v in d.items()}
+                    for k, d in details.items() if d
+                }
+            })
         }).execute()
-        print(f"\n  ✅ Stored L({obs_date}) to Supabase")
+        print(f"\n  ✅ Stored L({obs_date}) → {band} to Supabase")
     except Exception as e:
         print(f"\n  ⚠️  Supabase storage failed: {e}")
 
@@ -453,4 +473,4 @@ if __name__ == "__main__":
         print_vector(L, details)
 
     if args.store:
-        store_to_supabase(L, target)
+        store_to_supabase(L, details, target)

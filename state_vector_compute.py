@@ -178,9 +178,12 @@ CALIB = {
     "bdti_vs_baseline":    {"mu": 0.0,    "sigma": 200.0,  "w": 0.10},  # index points vs 5Y avg
 
     # L_cross components
-    "boj_fed_diff_bp":     {"mu": 168.0,  "sigma": 165.0,  "w": 0.20},  # bp — DFF-JP10Y means; old 350/80 was wrong
-    "usd_jpy":             {"mu": 122.82, "sigma": 17.26,  "w": 0.20},  # — FRED DEXJPUS 2015-2025
-    "boj_rate":            {"mu": 0.1,    "sigma": 0.3,    "w": 0.25},  # % (inverted — low = loaded)
+    "boj_fed_diff_bp":     {"mu": 168.0,  "sigma": 165.0,  "w": 0.15},  # bp — DFF-JP10Y means; old 350/80 was wrong
+    "usd_jpy":             {"mu": 122.82, "sigma": 17.26,  "w": 0.15},  # — FRED DEXJPUS 2015-2025
+    "boj_rate":            {"mu": 0.1,    "sigma": 0.3,    "w": 0.15},  # % (inverted — low = loaded)
+    # Physical flow analogs for FX (from yen_mechanics_daily):
+    "jpy_spec_short":      {"mu": 0.0,    "sigma": 12.0,   "w": 0.30},  # −NC%OI; positive = specs short yen = carry crowded; IMM JPY 2015-2025 1σ≈12%
+    "yen_episode_days":    {"mu": 0.0,    "sigma": 7.0,    "w": 0.25},  # days sustained above 160; mu=0=baseline not above 160; intervention window ≈7d
 }
 
 
@@ -269,6 +272,55 @@ def _fetch_inventory_levels() -> Dict[str, Optional[float]]:
                 result["cushing_stocks_inv"] = round(32.2 - float(val), 3)
             elif sid == "WCESTUS1":
                 result["crude_stocks_inv"] = round(439.5 - float(val), 3)
+        return result
+    except Exception:
+        return {}
+
+
+# ── Yen mechanics (from yen_mechanics_daily, populated by yen_mechanics.py) ───
+
+def _fetch_yen_mechanics() -> Dict[str, Optional[float]]:
+    """
+    Pull latest row from yen_mechanics_daily (written by yen_mechanics.py, runs before
+    state_vector_compute.py in the daily pipeline).
+
+    Returns two signals for L_cross CALIB:
+      jpy_spec_short   = −jpy_nc_pct_oi: positive = specs net short yen = carry crowded
+                         mu=0.0, sigma=12; current -33.9% → stored +33.9 → z=+2.83
+      yen_episode_days = current_episode_days above 160: 0 when below 160
+                         mu=0.0, sigma=7; current 15d → z=+2.14 (max-ever episode)
+
+    Both are physical-flow analogs for FX: CFTC positioning ≡ COT for oil,
+    episode duration ≡ Cushing drawdown days below threshold.
+    """
+    import subprocess as _sp
+    key = "sb_publishable_TJg65x5w56CulOEdWFJNyQ_89loJtit"
+    url = (SUPABASE_URL
+           + "/rest/v1/yen_mechanics_daily"
+           + "?select=as_of_date,jpy_nc_pct_oi,current_episode_days,usdjpy_spot,yen_signal"
+           + "&order=as_of_date.desc&limit=1")
+    r = _sp.run(
+        ["curl", "-s", "--max-time", "15", url,
+         "-H", f"apikey: {key}",
+         "-H", f"Authorization: Bearer {key}"],
+        capture_output=True, text=True
+    )
+    if r.returncode != 0 or not r.stdout.strip():
+        return {}
+    try:
+        import json as _j
+        rows = _j.loads(r.stdout)
+        if not isinstance(rows, list) or not rows:
+            return {}
+        row = rows[0]
+        result: Dict[str, Optional[float]] = {}
+        nc_pct = row.get("jpy_nc_pct_oi")
+        ep_days = row.get("current_episode_days")
+        if nc_pct is not None:
+            # Invert: negative NC % → positive stress (crowded short = stress)
+            result["jpy_spec_short"] = round(-float(nc_pct), 3)
+        if ep_days is not None:
+            result["yen_episode_days"] = float(ep_days)
         return result
     except Exception:
         return {}
@@ -441,12 +493,12 @@ def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[flo
     c["bdti_vs_baseline"] = None  # Baltic Exchange — no free API
 
     # ── L_cross: JPY Carry ────────────────────────────────────────────────────
-    print("  L_cross — JPY Carry")
+    print("  L_cross — JPY Carry / Intervention Mechanics")
 
     # USD/JPY from FRED
     jpy = fred_latest("DEXJPUS")
     c["usd_jpy"] = jpy
-    print(f"    USD/JPY: {jpy:.1f}" if jpy else "    USD/JPY: unavailable")
+    print(f"    USD/JPY: {jpy:.3f}" if jpy else "    USD/JPY: unavailable")
 
     # BOJ rate — confirmed 1.0% after Jun 16 hike (25bp from 0.75%)
     c["boj_rate"] = 1.0
@@ -459,6 +511,25 @@ def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[flo
         print(f"    Fed-BOJ diff: {c['boj_fed_diff_bp']:.0f}bp")
     else:
         c["boj_fed_diff_bp"] = None
+
+    # Physical-flow analogs from yen_mechanics_daily (populated by yen_mechanics.py)
+    yen_data = _fetch_yen_mechanics()
+    c["jpy_spec_short"]   = yen_data.get("jpy_spec_short")    # −NC%OI; +ve = crowded short yen
+    c["yen_episode_days"] = yen_data.get("yen_episode_days")  # days above 160; 0 when below
+
+    if c["jpy_spec_short"] is not None:
+        nc_pct = -c["jpy_spec_short"]   # recover original sign for display
+        z_spec = c["jpy_spec_short"] / 12.0
+        print(f"    CFTC IMM JPY NC: {nc_pct:+.1f}% OI → jpy_spec_short={c['jpy_spec_short']:+.1f}  z={z_spec:+.2f}")
+    else:
+        print("    CFTC IMM JPY NC: unavailable (yen_mechanics.py not yet run today?)")
+
+    if c["yen_episode_days"] is not None:
+        z_ep = c["yen_episode_days"] / 7.0
+        above = "🔴 ABOVE 160" if c["yen_episode_days"] > 0 else "⚪ below 160"
+        print(f"    Yen episode days above 160: {c['yen_episode_days']:.0f}d  z={z_ep:+.2f}  [{above}]")
+    else:
+        print("    Yen episode days: unavailable")
 
     return c
 
@@ -592,7 +663,9 @@ def compute_state_vector(components: Dict) -> Dict:
     L["l9"], details["l9"] = (0.38, {})   # AI/Labor: no primary API feed configured
 
     L["l_cross"], details["l_cross"] = compute_leg(components, [
-        "boj_fed_diff_bp", "usd_jpy", "boj_rate"
+        "boj_fed_diff_bp", "usd_jpy", "boj_rate",
+        "jpy_spec_short",    # CFTC IMM crowding: −NC%OI; +ve = specs short yen = intervention approach
+        "yen_episode_days",  # days above 160 key level; 0 baseline; >7d = MOF action window
     ])
 
     # Composite score
