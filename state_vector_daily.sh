@@ -31,6 +31,13 @@ python3 yen_mechanics.py 1>&2 || true
 # Step 2: Polymarket snapshot + STEO refresh + data condition checks
 python3 polymarket_snapshot.py 1>&2 || true
 
+# Step 2.2: Kalshi held-position watch — rules-amendment/status/quote-drift
+# alerts for the real-money book (G-024). Read-only against the API; never
+# places orders. Alerts append to ~/Library/Logs/SIAIS/position_alerts.jsonl
+# regardless of this script's own exit code, so a failure here never blocks
+# the state vector from computing.
+python3 position_watch.py 1>&2 || true
+
 # Step 2.5: Kalman-filtered L(t) — writes state_vector_filtered directly (P-034).
 # Runs BEFORE state_vector_compute so today's raw row (inserted by the trigger
 # after this script) appears in the NEXT day's filter input; filter output for
