@@ -49,6 +49,17 @@ sys.path.insert(0, HERE)
 from state_vector_compute import (  # noqa: E402
     compute_leg, compute_state_vector, CALIB, zscore, _constraint_band,
 )
+# Reuse the REAL EIA fetch function (G-033) — same API call inventory_tracker.py
+# makes daily in production, just requesting more weeks of history. Never prints
+# the key (SECRET_HANDLING.md); EIA_KEY read internally by inventory_tracker.py
+# from EIA_API_KEY env var or its own fallback default.
+from inventory_tracker import eia_fetch_series  # noqa: E402
+
+# Same inverted-deviation formula state_vector_compute.py's _fetch_inventory_levels()
+# uses — duplicated as constants (not re-derived) so a change to one is visibly
+# a change to both, per that function's own docstring values.
+CUSHING_5YR_AVG = 32.2   # mmbbl, sigma=9.05
+CRUDE_5YR_AVG = 439.5    # mmbbl, sigma=20.0
 
 FRED_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id="
 
@@ -98,6 +109,21 @@ def month_end_resample(series):
     return by_month
 
 
+def eia_history_monthly(series_id, n_weeks=1450):
+    """Full weekly EIA history via inventory_tracker's own fetch function
+    (G-033) -> {YYYY-MM: last weekly value in month}. n_weeks=1450 comfortably
+    covers 2000-2026 (26yr * 52wk = 1352); WCESTUS1 actually goes back to
+    1999, W_EPC0_SAX_YCUOK_MBBL (Cushing) only to 2004 (hub reporting started
+    later) -- verified by direct fetch before writing this, not assumed."""
+    rows = eia_fetch_series(series_id, n_weeks=n_weeks)
+    print(f"  {series_id}: {len(rows)} weekly observations", file=sys.stderr)
+    by_month = {}
+    for row in rows:
+        ym = row["period"][:7]
+        by_month[ym] = row["value"]  # sorted input -> last write wins, same pattern as month_end_resample
+    return by_month
+
+
 def build_monthly_frame(start, end):
     print("Fetching FRED history (no API key needed, public CSV endpoint)...", file=sys.stderr)
     raw = {}
@@ -105,6 +131,12 @@ def build_monthly_frame(start, end):
         h = fred_history(sid)
         print(f"  {key} ({sid}): {len(h)} observations", file=sys.stderr)
         raw[key] = month_end_resample(dict(sorted(h.items())))
+
+    print("Fetching EIA inventory history (G-033 — extends the backtest to "
+          "cover cushing_stocks_inv/crude_stocks_inv, previously always None)...",
+          file=sys.stderr)
+    raw["crude_stocks_actual"] = eia_history_monthly("WCESTUS1")
+    raw["cushing_stocks_actual"] = eia_history_monthly("W_EPC0_SAX_YCUOK_MBBL")
 
     months = sorted({m for series in raw.values() for m in series
                       if start <= m <= end})
@@ -124,6 +156,17 @@ def components_for_month(vals):
     else:
         c["ustr_10y_spread"] = None
     c["henry_hub"] = vals.get("henry_hub")
+    # G-033: real historical inventory deviation signals, same inverted-
+    # deviation formula as state_vector_compute.py's _fetch_inventory_levels
+    # (value = 5yr_avg - actual; positive = below seasonal avg = stress).
+    if vals.get("crude_stocks_actual") is not None:
+        c["crude_stocks_inv"] = round(CRUDE_5YR_AVG - vals["crude_stocks_actual"], 3)
+    else:
+        c["crude_stocks_inv"] = None
+    if vals.get("cushing_stocks_actual") is not None:
+        c["cushing_stocks_inv"] = round(CUSHING_5YR_AVG - vals["cushing_stocks_actual"], 3)
+    else:
+        c["cushing_stocks_inv"] = None
     # everything else in CALIB explicitly None — no deep free history
     for k in CALIB:
         c.setdefault(k, None)
