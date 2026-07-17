@@ -94,9 +94,21 @@ LEG_TERMS = {
 }
 
 # ── Critical Signal Watchlist (triggers an alert callout) ─────────────────
+# Kept as plain substrings on purpose (matches the rest of this script's
+# style), but each entry should be checked against real recent headlines
+# when added, not just guessed — "bab al-mandab" alone missed the 2026-07-16
+# sweep because feeds spelled it "Bab el-Mandeb"; found only by checking why
+# a visibly major escalation produced zero critical hits.
 CRITICAL_SIGNALS = [
     "bab al-mandab",
+    "bab al-mandeb",
+    "bab el-mandeb",
+    "bab el-mandab",
     "hormuz reopens",
+    "hormuz closed",
+    "naval blockade",
+    "iran blockade",
+    "strikes exchanged",
     "saudi peg",
     "dollar peg review",
     "boj hike",
