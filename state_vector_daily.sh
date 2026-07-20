@@ -8,12 +8,20 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Load API keys from local .env (gitignored)
+# Load API keys from local .env (gitignored). Routed through sanitize_env.py
+# rather than a raw `source .env`: a raw source aborts the whole script
+# (set -e) on any line bash's word-splitting can't parse, and bash's own
+# parse-error message embeds the offending line's content verbatim -- the
+# root cause of the 2026-07-16/17/18 secret-exposure incidents documented
+# in SECRET_HANDLING.md. sanitize_env.py never prints a value; it only
+# reads KEY=VALUE pairs and re-emits them with guaranteed-safe quoting.
 ENV_FILE="$SCRIPT_DIR/.env"
+SAFE_ENV_FILE="$SCRIPT_DIR/.env.safe"
 if [ -f "$ENV_FILE" ]; then
+    python3 "$SCRIPT_DIR/sanitize_env.py" "$ENV_FILE" "$SAFE_ENV_FILE" 1>&2
     set -o allexport
     # shellcheck disable=SC1090
-    source "$ENV_FILE"
+    source "$SAFE_ENV_FILE"
     set +o allexport
 fi
 
