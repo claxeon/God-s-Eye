@@ -31,6 +31,15 @@ FEEDS = [
     ("Reuters Commodities","https://feeds.reuters.com/reuters/companyNews"),
     ("Nikkei Asia",        "https://asia.nikkei.com/rss/feed/nar"),
     ("ZeroHedge",          "https://feeds.feedburner.com/zerohedge/feed"),
+    # Added 2026-07-29: the feed list was energy/shipping-heavy with no
+    # dedicated Asia-tech source, so the Jul 28-29 KOSPI crash reached the
+    # sweep only through general-business feeds.
+    ("KED Global (Korea)",  "https://www.kedglobal.com/rss/allArticle.xml"),
+    # Verified 2026-07-29: KED Global returns 20 entries. Korea Herald,
+    # Chosun Biz, Yonhap, Pulse/MK and Korea JoongAng were all tested and
+    # rejected — they 404, 301, or return HTTP 200 with an EMPTY body, which
+    # feedparser reports as success with zero entries. Do not re-add without
+    # checking len(entries), not just status.
 ]
 
 # ── Key Terms Per Leg ─────────────────────────────────────────────────────
@@ -69,10 +78,21 @@ LEG_TERMS = {
         "lockheed", "weapons supply", "military industrial", "artillery",
         "missile production", "defense spending", "arms production",
     ],
+    # Broadened 2026-07-29. The prior term list was Taiwan-kinetic only and
+    # matched ZERO items during the Jul 28-29 KOSPI crash — the largest
+    # semiconductor repricing on record (KOSPI -39% from peak, back-to-back
+    # circuit breakers, SK Hynix -55%). The leg's real exposure runs through
+    # Korean memory and Chinese DRAM capacity, not only a Taiwan blockade.
     "Leg 7 — Semiconductor / Taiwan": [
         "taiwan strait", "tsmc", "semiconductor", "advanced chip", "taiwan tension",
         "taiwan military", "pla navy", "chip war", "taiwan invasion",
         "taiwan blockade", "microchip", "taiwan crisis",
+        # Korea / memory complex
+        "kospi", "samsung electronics", "sk hynix", "kioxia", "micron",
+        "dram", "nand", "hbm", "memory chip", "chip stocks", "chipmaker",
+        # China capacity + toolchain
+        "cxmt", "smic", "lithography", "euv", "chip equipment", "asml",
+        "export controls", "chip subsidies", "foundry",
     ],
     "Leg 8 — Maritime / Insurance": [
         "shipping", "maritime", "lloyd", "war risk insurance", "tanker",
@@ -84,6 +104,11 @@ LEG_TERMS = {
         "layoffs", "job cuts", "sahm rule", "recession indicator",
         "ai data center", "hyperscaler capex", "data center power",
         "unemployment rate", "labor market", "tech layoffs",
+        # AI capex sustainability — the channel that actually fired Jul 28-29.
+        # Circular-financing questions (Nvidia/OpenAI) were one of the three
+        # named triggers of the KOSPI crash; none of the terms above match it.
+        "nvidia", "openai", "ai capex", "ai bubble", "circular financing",
+        "ai spending", "gpu demand", "ai infrastructure", "compute demand",
     ],
     "Cross-Cutting — JPY Carry": [
         "boj", "bank of japan", "yen", "jpy", "carry trade", "jgb",

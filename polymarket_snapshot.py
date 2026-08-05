@@ -94,6 +94,73 @@ def fetch_polymarket(slug: str) -> Optional[dict]:
     return data[0]
 
 
+# ── Fetch Kalshi market data ─────────────────────────────────────────────────
+#
+# Predictions whose market_slug starts with "kalshi:" are NOT Polymarket slugs.
+# Before 2026-07-28 this script called fetch_polymarket() on them unconditionally,
+# so every Kalshi-backed prediction reported "slug not found on Polymarket"
+# forever -- P43/P45/P51/P52 were all flagged stale while their markets were
+# alive and trading. That masked a rules amendment on the P43/P51 contracts for
+# two weeks. Route by prefix instead.
+
+def fetch_kalshi(ticker: str) -> Optional[dict]:
+    """Fetch a Kalshi market and normalize it to the Polymarket-ish shape
+    the rest of this script expects (question / outcomes / outcomePrices /
+    closed / endDate)."""
+    try:
+        from kalshi_client import Kalshi
+        m = Kalshi().market(ticker)
+    except Exception:
+        return None
+    if not m:
+        return None
+
+    # Kalshi quotes YES in dollars. Prefer last trade; fall back to bid/ask mid
+    # so an untraded-but-quoted book still yields a probability.
+    def _f(key):
+        try:
+            return float(m.get(key))
+        except (TypeError, ValueError):
+            return None
+
+    last, bid, ask = _f("last_price_dollars"), _f("yes_bid_dollars"), _f("yes_ask_dollars")
+    yes = last if last is not None else (
+        (bid + ask) / 2 if bid is not None and ask is not None else None
+    )
+    if yes is None:
+        return None
+
+    return {
+        "question":      m.get("title", ""),
+        "outcomes":      ["Yes", "No"],
+        "outcomePrices": [f"{yes:.4f}", f"{1 - yes:.4f}"],
+        "closed":        m.get("status") != "active",
+        "endDate":       (m.get("close_time") or "")[:10],
+        # Kalshi-specific fields preserved into the snapshot raw payload so a
+        # rules amendment is visible in the historical record, not just in
+        # position_watch's alert log.
+        "_kalshi": {
+            "ticker":        m.get("ticker"),
+            "status":        m.get("status"),
+            "result":        m.get("result") or "",
+            "yes_bid":       bid,
+            "yes_ask":       ask,
+            "last":          last,
+            "volume":        m.get("volume_fp"),
+            "open_interest": m.get("open_interest_fp"),
+            "updated_time":  m.get("updated_time"),
+            "rules_primary": m.get("rules_primary"),
+        },
+    }
+
+
+def fetch_market(slug: str) -> tuple:
+    """Route a market_slug to its venue. Returns (market_dict_or_None, venue)."""
+    if slug.startswith("kalshi:"):
+        return fetch_kalshi(slug.split("kalshi:", 1)[1]), "kalshi"
+    return fetch_polymarket(slug), "polymarket"
+
+
 def extract_yes_prob(market: dict) -> Optional[float]:
     """Extract Yes probability from outcomePrices list."""
     outcomes_raw  = market.get("outcomes", "[]")
@@ -121,10 +188,11 @@ def extract_yes_prob(market: dict) -> Optional[float]:
 # ── Write snapshot to Supabase ────────────────────────────────────────────────
 
 def write_snapshot(slug: str, question: str, yes_prob: float,
-                   end_date: Optional[str], raw: dict) -> bool:
+                   end_date: Optional[str], raw: dict,
+                   venue: str = "polymarket") -> bool:
     row = {
         "snapshot_at": datetime.now(timezone.utc).isoformat(),
-        "source":      "polymarket",
+        "source":      venue,
         "market_slug": slug,
         "question":    question,
         "yes_prob":    yes_prob,
@@ -187,9 +255,9 @@ def main():
             print()
             continue
 
-        market = fetch_polymarket(slug)
+        market, venue = fetch_market(slug)
         if market is None:
-            print(f"       ⚠️  slug not found on Polymarket: {slug[:60]}")
+            print(f"       ⚠️  slug not found on {venue}: {slug[:60]}")
             slug_not_found.append(pid)
             if overdue:
                 needs_resolution.append({"id": pid, "claim": pred["claim_text"],
@@ -206,14 +274,17 @@ def main():
 
         prob_str = f"{yes_prob:.1%}" if yes_prob is not None else "N/A"
         closed_tag = "  CLOSED" if is_closed else ""
-        print(f"       ✓ Polymarket yes_prob={prob_str}{closed_tag}  [{question[:55]}]")
+        print(f"       ✓ {venue} yes_prob={prob_str}{closed_tag}  [{question[:55]}]")
 
         if yes_prob is not None:
-            ok = write_snapshot(slug, question, yes_prob, end_date, {
+            raw = {
                 "outcomePrices": market.get("outcomePrices"),
                 "outcomes":      market.get("outcomes"),
                 "closed":        is_closed,
-            })
+            }
+            if market.get("_kalshi"):
+                raw["kalshi"] = market["_kalshi"]
+            ok = write_snapshot(slug, question, yes_prob, end_date, raw, venue)
             if ok:
                 snapshots_written += 1
                 print(f"       → snapshot written")

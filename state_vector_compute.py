@@ -59,10 +59,31 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 # These require human monitoring — no API feed
 MANUAL_STATE = {
     # Hormuz: 0=open, 0.33=PGSA toll, 0.67=partial close, 1.0=mines/closed
-    "hormuz_status": 0.33,          # PGSA toll — Jun 8, 2026
+    # Updated 2026-07-22: independent AIS/tanker-tracking data (Lloyd's List
+    # Intelligence Jul 21 brief; National Security Journal) shows traffic down
+    # ~90% (108→25 non-Iranian-linked transits w/w; 140/day pre-war → ~dozen/day
+    # now). CENTCOM disputes this (claims 55 ships/17M+ bbl transited Jul 20 —
+    # an order of magnitude apart from the independent count) but has a clear
+    # messaging incentive; independent tracking is the harder-to-manipulate
+    # source. Not raised to 1.0 (mines/closed) — Iran's mine claims are
+    # separately disputed by the US and unconfirmed. See Intelligence Briefs/
+    # Escalation Verification - 2026-07-22.md. NOTE: DR-1 below will still cap
+    # this at 0.20 as long as FRED's lagged Brent print sits under $95 — expect
+    # that cap to lift within days given real-time Brent already ~$94-95.
+    "hormuz_status": 0.67,          # Partial close — 2026-07-22, per independent AIS data
 
     # Bab al-Mandab: 0=clear, 0.5=declared blockade, 1.0=AIS physical confirmed
-    "bab_status": 0.50,             # Declared blockade Jun 8, 2026
+    # Updated 2026-07-22: this is a NEW, separate declaration from the Jun 8
+    # one below (that one is a distinct target set — Israeli-linked shipping —
+    # and was correctly auto-downgraded by DR-3 after 30 days with no AIS
+    # confirmation). Houthis declared a full naval blockade of Saudi Arabia
+    # specifically on Jul 20, 2026, and it was AIS-confirmed within ~24-48h:
+    # two supertankers (Rodos, Xin Long Yang), 2.8M bbl of Saudi crude loaded
+    # at Yanbu, tracked reversing course toward Suez rather than continuing
+    # south. Set below 1.0 given this is only days old and based on two
+    # confirmed diversions, not a large sample. See Intelligence Briefs/
+    # Escalation Verification - 2026-07-22.md.
+    "bab_status": 0.85,             # Saudi blockade AIS-confirmed — 2026-07-22 (supersedes stale Jun 8 value)
 
     # GENIUS Act: 0=pending, 0.5=passed Senate, 1.0=signed
     "genius_act": 0.30,             # Active lobbying, not passed
@@ -79,7 +100,13 @@ MANUAL_STATE = {
     # Ceasefire escalation: 0=full ceasefire holding, 1.0=active military operations
     # S(t) suppression component — falls when peace holds, rises on escalation
     # Historical baseline: 2015-2025 Middle East conflict at varying levels, avg ~0.35
-    "ceasefire_escalation": 0.60,   # Jun 30: nominal MoU but Israel still hitting Lebanon, Hormuz PGSA
+    # Updated 2026-07-22: the Jun 30 "nominal MoU" fully collapsed ~Jul 17-18.
+    # CENTCOM confirms 11 consecutive nights of strikes as of Jul 21; US naval
+    # blockade reimposed; 2 US troops killed in Jordan Jul 18-19; tanker attacks
+    # continuing near Oman through Jul 21. Not set to 1.0 — some reporting
+    # (CNBC Jul 21) still frames a "10-day ceasefire" as in focus/under
+    # discussion, so a diplomatic channel isn't confirmed fully dead.
+    "ceasefire_escalation": 0.90,   # Active operations, 11+ consecutive nights — 2026-07-22
 }
 
 # ── Logistic / sigmoid ────────────────────────────────────────────────────────
@@ -112,6 +139,38 @@ def eia_latest(series_id: str) -> Optional[float]:
     return None
 
 # ── FRED fetch ────────────────────────────────────────────────────────────────
+# ── DR-1 hysteresis parameters (see apply_downgrade_rules) ───────────────────
+DR1_THRESHOLD   = 95.0   # $/bbl — where the war premium historically starts
+DR1_LOOKBACK    = 30     # prints to scan for a release event
+DR1_MIN_CONSEC  = 5      # consecutive prints below threshold before re-arming
+
+
+def fred_series_values(series_id: str, n: int = 30) -> List[float]:
+    """Last n non-null values of a FRED series, oldest→newest.
+
+    Added 2026-08-03 for DR-1's hysteresis, which needs history rather than
+    just the latest print. Returns [] on failure — callers must treat an empty
+    list as "no history" and fall back, never as "no breaches"."""
+    import subprocess
+    try:
+        r = subprocess.run(["curl", "-s", "--max-time", "20", FRED_BASE + series_id],
+                           capture_output=True, text=True)
+        if r.returncode != 0 or not r.stdout.strip():
+            return []
+        out = []
+        for line in r.stdout.strip().split("\n")[1:]:
+            parts = line.split(",")
+            if len(parts) == 2 and parts[1].strip() not in ("", "."):
+                try:
+                    out.append(float(parts[1]))
+                except ValueError:
+                    pass
+        return out[-n:]
+    except Exception as e:
+        log(f"  ⚠️  FRED series {series_id}: {e}")
+        return []
+
+
 def fred_latest(series_id: str) -> Optional[float]:
     """Fetch latest FRED value via curl subprocess (more reliable than urllib in this env)."""
     import subprocess
@@ -178,12 +237,30 @@ CALIB = {
     "bdti_vs_baseline":    {"mu": 0.0,    "sigma": 200.0,  "w": 0.10},  # index points vs 5Y avg
 
     # L_cross components
-    "boj_fed_diff_bp":     {"mu": 168.0,  "sigma": 165.0,  "w": 0.15},  # bp — DFF-JP10Y means; old 350/80 was wrong
-    "usd_jpy":             {"mu": 122.82, "sigma": 17.26,  "w": 0.15},  # — FRED DEXJPUS 2015-2025
-    "boj_rate":            {"mu": 0.1,    "sigma": 0.3,    "w": 0.15},  # % (inverted — low = loaded)
+    # ── l_cross weights renormalized ×0.90 on 2026-08-03 to make room for
+    # jgb_fiscal_stress at 0.10 (below). Relative ordering is unchanged; only
+    # the level of each contribution shrinks 10%. NOTE: l_cross is NOT part of
+    # the composite (see weights dict in compute_state_vector — L1..L9 only),
+    # so this changes the l_cross series alone, not the headline score.
+    "boj_fed_diff_bp":     {"mu": 168.0,  "sigma": 165.0,  "w": 0.135}, # bp — POLICY rates (FEDFUNDS − BOJ), not bond yields
+    "usd_jpy":             {"mu": 122.82, "sigma": 17.26,  "w": 0.135}, # — FRED DEXJPUS 2015-2025
+    "boj_rate":            {"mu": 0.1,    "sigma": 0.3,    "w": 0.135}, # % (inverted — low = loaded)
+    # JGB 10Y level as fiscal-stress signal. Added 2026-08-03: the framework
+    # had NO JGB term at all, so the fiscally-driven yen-weakness channel was
+    # invisible. Rising JGB yields on debt-sustainability fear (Takaichi's
+    # ¥10tn expansion) weaken the yen rather than support it — inverted vs
+    # textbook, corr(USDJPY, 2561.T) = −0.156 1y (t=−2.54), −0.217 6m (t=−2.47).
+    # mu/sigma from FRED IRLTLT01JPM156N 2015-2025 (n=132), matching the
+    # convention used for usd_jpy. Fed from yen_mechanics_daily.jgb_10yr_yield,
+    # which now carries the 2561.T daily proxy rather than the stale monthly.
+    # ⚠️ At ~2.87% this reads z≈+5.1 and will sit near-saturated until yields
+    # normalize — arguably correct for a 30-year high, but it is a persistent
+    # "on" signal, not a discriminating one. Revisit sigma if that becomes a
+    # problem.
+    "jgb_fiscal_stress":   {"mu": 0.3293, "sigma": 0.4961, "w": 0.10},  # % — JGB 10Y level
     # Physical flow analogs for FX (from yen_mechanics_daily):
-    "jpy_spec_short":      {"mu": 0.0,    "sigma": 12.0,   "w": 0.30},  # −NC%OI; positive = specs short yen = carry crowded; IMM JPY 2015-2025 1σ≈12%
-    "yen_episode_days":    {"mu": 0.0,    "sigma": 7.0,    "w": 0.25},  # days sustained above 160; mu=0=baseline not above 160; intervention window ≈7d
+    "jpy_spec_short":      {"mu": 0.0,    "sigma": 12.0,   "w": 0.270},  # −NC%OI; positive = specs short yen = carry crowded; IMM JPY 2015-2025 1σ≈12%
+    "yen_episode_days":    {"mu": 0.0,    "sigma": 7.0,    "w": 0.225},  # days sustained above 160; mu=0=baseline not above 160; intervention window ≈7d
 }
 
 
@@ -297,7 +374,7 @@ def _fetch_yen_mechanics() -> Dict[str, Optional[float]]:
     key = "sb_publishable_TJg65x5w56CulOEdWFJNyQ_89loJtit"
     url = (SUPABASE_URL
            + "/rest/v1/yen_mechanics_daily"
-           + "?select=as_of_date,jpy_nc_pct_oi,current_episode_days,usdjpy_spot,yen_signal"
+           + "?select=as_of_date,jpy_nc_pct_oi,current_episode_days,usdjpy_spot,yen_signal,jgb_10yr_yield"
            + "&order=as_of_date.desc&limit=1")
     r = _sp.run(
         ["curl", "-s", "--max-time", "15", url,
@@ -321,6 +398,10 @@ def _fetch_yen_mechanics() -> Dict[str, Optional[float]]:
             result["jpy_spec_short"] = round(-float(nc_pct), 3)
         if ep_days is not None:
             result["yen_episode_days"] = float(ep_days)
+        jgb = row.get("jgb_10yr_yield")
+        if jgb is not None:
+            # Level, not inverted: higher JGB yield = more fiscal stress.
+            result["jgb_10yr_yield"] = float(jgb)
         return result
     except Exception:
         return {}
@@ -516,6 +597,14 @@ def get_components(target_date: Optional[date] = None) -> Dict[str, Optional[flo
     yen_data = _fetch_yen_mechanics()
     c["jpy_spec_short"]   = yen_data.get("jpy_spec_short")    # −NC%OI; +ve = crowded short yen
     c["yen_episode_days"] = yen_data.get("yen_episode_days")  # days above 160; 0 when below
+    # JGB 10Y level — fiscal-stress channel. yen_mechanics.py writes the 2561.T
+    # daily proxy here (falling back to FRED's monthly only if the proxy fails).
+    c["jgb_fiscal_stress"] = yen_data.get("jgb_10yr_yield")
+    if c["jgb_fiscal_stress"] is not None:
+        z_jgb = (c["jgb_fiscal_stress"] - 0.3293) / 0.4961
+        print(f"    JGB 10Y (fiscal stress): {c['jgb_fiscal_stress']:.3f}%  z={z_jgb:+.2f}")
+    else:
+        print("    JGB 10Y (fiscal stress): unavailable")
 
     if c["jpy_spec_short"] is not None:
         nc_pct = -c["jpy_spec_short"]   # recover original sign for display
@@ -555,15 +644,56 @@ def apply_downgrade_rules(components: dict) -> list:
     fired = []
     brent = components.get("brent_spot")
 
-    # DR-1: Brent war-premium collapse — PGSA without market pricing
-    # At $95 the war premium historically starts. Below it: market doesn't believe PGSA.
-    if brent is not None and brent < 95.0:
+    # DR-1: Brent war-premium collapse — PGSA without market pricing.
+    #
+    # HYSTERETIC as of 2026-08-03. The original rule was a memoryless single
+    # threshold (`if brent < 95: cap`), which had two defects:
+    #
+    #  1. It contradicted its own docstring. This module claims to cap "when
+    #     SUSTAINED suppression is confirmed", but a single daily print below
+    #     $95 fired it. On 2026-08-03 Brent had printed $105.32 and $100.31
+    #     (Jul 23-24) and then ONE day at $91.82 — and that one print re-capped
+    #     hormuz_status 0.67 -> 0.20.
+    #  2. It contradicted P55, whose locked criteria state that a FRED
+    #     DCOILBRENTEU print >= $95 "lifts state_vector_compute.py's DR-1
+    #     downgrade rule". P55 resolved TRUE on 2026-08-03; under the old rule
+    #     the cap kept firing anyway.
+    #
+    # The rule's premise is "the market doesn't believe PGSA". Brent reaching
+    # $105 falsifies that premise: the market demonstrably WILL price the
+    # premium when it sees cause. But a later sustained collapse is still real
+    # information, so the cap must be able to re-arm — hence two thresholds:
+    #
+    #   RELEASE  max(Brent, last 30 prints) >= $95  -> do not cap
+    #   ARM      else, and Brent < $95 for >= 5 consecutive prints -> cap 0.20
+    #   DEAD BAND otherwise -> leave hormuz_status untouched
+    #
+    # This preserves the anti-ratchet purpose (the market still disciplines the
+    # narrative) while removing day-to-day flip-flopping.
+    if brent is not None:
+        hist = fred_series_values("DCOILBRENTEU", n=DR1_LOOKBACK)
+        recent_max = max(hist) if hist else brent
+        consec_below = 0
+        for v in reversed(hist):
+            if v < DR1_THRESHOLD:
+                consec_below += 1
+            else:
+                break
+
         old = components.get("hormuz_status", MANUAL_STATE["hormuz_status"])
-        if old > 0.20:
+        if recent_max >= DR1_THRESHOLD:
+            if old > 0.20:
+                fired.append(
+                    f"DR-1 RELEASED: Brent hit ${recent_max:.2f} within {DR1_LOOKBACK} "
+                    f"prints (>= ${DR1_THRESHOLD:.0f}) → cap lifted, hormuz_status "
+                    f"held at {old:.2f} (market HAS priced the PGSA premium)"
+                )
+        elif consec_below >= DR1_MIN_CONSEC and old > 0.20:
             components["hormuz_status"] = 0.20
             fired.append(
-                f"DR-1 fired: Brent ${brent:.0f} < $95 → hormuz_status {old:.2f}→0.20 "
-                f"(market not pricing PGSA war premium)"
+                f"DR-1 fired: Brent ${brent:.2f} < ${DR1_THRESHOLD:.0f} for "
+                f"{consec_below} consecutive prints → hormuz_status {old:.2f}→0.20 "
+                f"(sustained: market not pricing PGSA war premium)"
             )
 
     # DR-2: Deep price suppression signals diplomatic progress
@@ -663,7 +793,7 @@ def compute_state_vector(components: Dict) -> Dict:
     L["l9"], details["l9"] = (0.38, {})   # AI/Labor: no primary API feed configured
 
     L["l_cross"], details["l_cross"] = compute_leg(components, [
-        "boj_fed_diff_bp", "usd_jpy", "boj_rate",
+        "boj_fed_diff_bp", "usd_jpy", "boj_rate", "jgb_fiscal_stress",
         "jpy_spec_short",    # CFTC IMM crowding: −NC%OI; +ve = specs short yen = intervention approach
         "yen_episode_days",  # days above 160 key level; 0 baseline; >7d = MOF action window
     ])

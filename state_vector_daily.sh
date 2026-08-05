@@ -46,6 +46,50 @@ python3 polymarket_snapshot.py 1>&2 || true
 # the state vector from computing.
 python3 position_watch.py 1>&2 || true
 
+# Step 2.3: FRED Brent prediction auto-resolver (P17/P55). Read-only here —
+# it prints TRIGGERED lines to stderr plus the SQL to apply, and the trigger
+# session commits them via MCP (this script holds no service-role key).
+# Exists because DCOILBRENTEU ran 6 business days stale through the Jul 23-24
+# spike to $100+, so the ledger kept reporting "not yet" against a dead price.
+python3 resolve_fred_brent_predictions.py 1>&2 || true
+
+# Step 2.4: China crude import tracker (P58) — the trigger variable for
+# whether the global deficit becomes priceable. STEO half is automated; the
+# observed-imports half is a hand-maintained table (no free monthly source
+# exists — EIA international carries China crude imports ANNUALLY to 2018).
+python3 china_import_tracker.py 1>&2 || true
+
+# Step 2.45: Pacific carrier watch — counts the China node's own stated
+# invasion tripwire ("< 2 battle groups in Pacific"), which had sat in the
+# node untracked. USNI Fleet Tracker publishes ~weekly; staleness is printed.
+python3 carrier_watch.py 1>&2 || true
+
+# Step 2.46: Semiconductor self-sufficiency gate — the constraint that actually
+# gates China's Taiwan kinetic option. carrier_watch (2.45) measures the
+# distraction side; this measures whether the door is usable. Also the closest
+# thing the framework currently has to a live Leg 7 observable, which is
+# otherwise hardcoded at 0.42 (state_vector_compute.py:684).
+python3 semi_selfsufficiency_watch.py 1>&2 || true
+
+# Step 2.47: Japan petroleum inventory model. strategic_inventories last
+# carries JP at 2026-04-30; METI publishes on a ~2-month lag, so the framework
+# is always flying on a stale anchor for the most Hormuz-exposed major economy
+# in the model. Rolls the anchor forward on a consumption-vs-import balance.
+python3 japan_inventory_model.py 1>&2 || true
+
+# Step 2.48: Carry-trade Channel B — hedged-yield spread (JGB vs FX-hedged UST)
+# plus BIS yen-borrow distribution and cohort breakeven. The framework measured
+# only Channel A (jpy_spec_short, yen_episode_days ~ half of l_cross), which is
+# a ~$13bn futures book; BIS shows ~$2.26tn of JPY cross-border claims actually
+# outstanding. Quarterly data, so this mostly reports slowly — run daily anyway
+# since the hedged spread moves with rates.
+python3 carry_mechanics.py 1>&2 || true
+
+# Step 2.49: RCT trigger monitor — watches the regime boundary (USD/JPY vs the
+# 149.6 cohort breakeven) INTERACTED with whether the market is hedged (VIX).
+# Proximity alone is not the signal; proximity while volatility is asleep is.
+python3 rct_trigger_monitor.py 1>&2 || true
+
 # Step 2.5: Kalman-filtered L(t) — writes state_vector_filtered directly (P-034).
 # Runs BEFORE state_vector_compute so today's raw row (inserted by the trigger
 # after this script) appears in the NEXT day's filter input; filter output for

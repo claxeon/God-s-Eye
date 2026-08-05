@@ -42,6 +42,89 @@ from typing import Optional
 SUPA_URL = "https://snykuqyceqpplnzmyksp.supabase.co"
 SUPA_KEY = "sb_publishable_TJg65x5w56CulOEdWFJNyQ_89loJtit"
 FRED_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id="
+
+# ── JGB daily proxy ──────────────────────────────────────────────────────────
+#
+# FRED's IRLTLT01JPM156N is Japan's 10Y benchmark, but it is a MONTHLY series
+# (dated first-of-month, and it is a monthly AVERAGE of dailies). Through the
+# 2026 fiscal-driven JGB selloff it ran two months behind: on 2026-08-03 it
+# still read 2.670% (June) against an actual ~2.83% -- a 16bp understatement,
+# on the single input that matters most for the BOJ bond-vs-currency trap.
+#
+# There is no free daily JGB yield feed (FRED has none; yfinance has no JGB
+# yield ticker). So: anchor on the last true FRED monthly value and extrapolate
+# with a JGB bond ETF, inverted through modified duration.
+#
+#   dP/P = -D_mod * dy   ->   dy(pp) = -(dP/P) * 100 / D_mod
+#
+# TICKER CHOICE MATTERS -- verified 2026-08-03, and two obvious candidates are
+# traps:
+#   2561.T  iShares Core JAPAN Government Bond ETF   <- correct, JGBs
+#   1482.T  iShares Core 7-10yr US TREASURY, JPY-hedged   <- NOT JGBs
+#   1487.T  Listed Index Fund US Bond (currency hedge)    <- NOT JGBs
+# Only 2561.T holds Japanese government bonds. The other two are US Treasury
+# funds that merely trade in Tokyo in yen.
+#
+# CALIBRATION: regressing monthly FRED yield changes on 2561.T monthly-MEAN
+# returns (n=76, 2019-2026) gives corr = -0.667, t = -7.69, implied modified
+# duration ~6.0y. Matching monthly means matters -- comparing FRED's monthly
+# average against a month's FIRST close destroys the signal (corr collapses to
+# ~0.01 and implied duration to ~0).
+#
+# ACCURACY: on 2026-08-03 the proxy returned 2.872% against a reported actual
+# of 2.83% -- a 4bp error, versus 16bp for the stale FRED value. A single-point
+# fit today would prefer D=7.0 (1bp error), but 6.0 is used because it is
+# estimated from 76 observations rather than tuned to one.
+JGB_PROXY_TICKER = "2561.T"
+JGB_PROXY_DURATION = 6.0     # years, modified; regression-derived
+
+
+def jgb_daily_proxy(anchor_yield):
+    """Estimate today's JGB 10Y from the FRED monthly anchor + 2561.T.
+
+    Returns (estimated_yield_pct, meta_dict) or (None, {}) if unavailable.
+    Never raises -- a failed proxy must fall back to the stale FRED value
+    rather than break the daily pipeline."""
+    if anchor_yield is None:
+        return None, {}
+    try:
+        import datetime as _dt
+        import pandas as pd
+        import yfinance as yf
+
+        rows = fred_series("IRLTLT01JPM156N", n_rows=36)
+        if not rows:
+            return None, {}
+        anchor_date = pd.Timestamp(rows[-1][0])
+
+        px = yf.Ticker(JGB_PROXY_TICKER).history(period="2y")["Close"].dropna()
+        if len(px) < 60:
+            return None, {}
+        px.index = px.index.tz_localize(None)
+
+        # anchor price = mean of the anchor month, matching FRED's convention
+        month = px[(px.index >= anchor_date) &
+                   (px.index < anchor_date + pd.DateOffset(months=1))]
+        if len(month) == 0:
+            return None, {}
+        p_anchor, p_now = float(month.mean()), float(px.iloc[-1])
+        chg = (p_now / p_anchor) - 1.0
+        est = anchor_yield - chg * 100.0 / JGB_PROXY_DURATION
+
+        # Sanity band: reject absurd extrapolations rather than publish them.
+        if not (0.0 <= est <= 8.0) or abs(est - anchor_yield) > 1.5:
+            return None, {}
+
+        return round(est, 3), {
+            "anchor_date": str(anchor_date.date()),
+            "anchor_yield": anchor_yield,
+            "anchor_age_days": (_dt.date.today() - anchor_date.date()).days,
+            "px_change_pct": round(100 * chg, 3),
+            "ticker": JGB_PROXY_TICKER,
+            "duration": JGB_PROXY_DURATION,
+        }
+    except Exception:
+        return None, {}
 CFTC_LEGACY_URL = "https://publicreporting.cftc.gov/resource/6dca-aqww.json"
 TODAY = date.today().isoformat()
 
@@ -434,10 +517,25 @@ def run_yen_mechanics() -> dict:
 
     # 2. Rate data (FRED)
     print("  Fetching US 10yr (DGS10) and JGB 10yr (IRLTLT01JPM156N)...", end=" ", flush=True)
-    us10  = fred_latest("DGS10")
-    jgb10 = fred_latest("IRLTLT01JPM156N")
+    us10       = fred_latest("DGS10")
+    jgb10_fred = fred_latest("IRLTLT01JPM156N")
+    print(f"US={us10:.2f}%  JGB(FRED monthly)={jgb10_fred:.2f}%"
+          if (us10 and jgb10_fred) else "partial/unavailable")
+
+    # 2b. JGB daily proxy — see jgb_daily_proxy() for why this exists.
+    jgb10_proxy, proxy_meta = jgb_daily_proxy(jgb10_fred)
+    jgb10 = jgb10_proxy if jgb10_proxy is not None else jgb10_fred
+    if jgb10_proxy is not None:
+        print(f"  JGB daily proxy: {jgb10_proxy:.3f}%  "
+              f"(anchor {proxy_meta['anchor_date']} {proxy_meta['anchor_yield']:.3f}%, "
+              f"{proxy_meta['anchor_age_days']}d old; 2561.T {proxy_meta['px_change_pct']:+.2f}%, "
+              f"D={JGB_PROXY_DURATION}y)  → +{100*(jgb10_proxy-jgb10_fred):.0f}bp vs stale FRED")
+    else:
+        print("  JGB daily proxy: unavailable — falling back to stale FRED monthly")
+
     rate_diff = round(us10 - jgb10, 3) if (us10 and jgb10) else None
-    print(f"US={us10:.2f}%  JGB={jgb10:.2f}%  diff={rate_diff:.2f}%" if rate_diff else "partial/unavailable")
+    if rate_diff is not None:
+        print(f"  Differential (US10Y − JGB10Y, proxy-adjusted): {rate_diff:.2f}%")
 
     # 3. CFTC JPY positioning
     print("  Fetching CFTC IMM JPY positioning...", end=" ", flush=True)
@@ -487,7 +585,7 @@ def run_yen_mechanics() -> dict:
         "intervention_flag":       sig["today_intervention"],
         "intervention_magnitude":  daily_pct if sig["today_intervention"] else None,
         "us_10yr_yield":           us10,
-        "jgb_10yr_yield":          jgb10,
+        "jgb_10yr_yield":          jgb10,          # proxy when available, else stale FRED
         "rate_differential":       rate_diff,
         "cot_report_date":         cot["report_date"] if cot else None,
         "jpy_nc_long":             cot["nc_long"] if cot else None,

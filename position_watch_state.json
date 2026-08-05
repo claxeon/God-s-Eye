@@ -1,0 +1,18 @@
+{
+  "KXHORMUZAVG-27JAN01-A100": {
+    "rules_hash": "8646ebd11c98510d",
+    "status": "active",
+    "result": "",
+    "yes_bid": 0.08,
+    "yes_ask": 0.13,
+    "checked": "2026-07-15T22:34:24.781060+00:00"
+  },
+  "KXNEXTTEAMNBA-26LJAM-MIN": {
+    "rules_hash": "6be7511b7f09addd",
+    "status": "active",
+    "result": "",
+    "yes_bid": null,
+    "yes_ask": 0.01,
+    "checked": "2026-07-26T18:35:42.741856+00:00"
+  }
+}
