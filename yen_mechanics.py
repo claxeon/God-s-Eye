@@ -480,6 +480,118 @@ def print_dashboard(spot: Optional[float], daily_pct: Optional[float],
     print("═" * 72)
 
 
+# ── Staleness carry-forward (G-050, 2026-08-11) ───────────────────────────────
+#
+# WHY THIS EXISTS. Four `l_cross` one-day collapses (07-26, 07-31, 08-05,
+# 08-09) were read for weeks as market signal. They were this script's upstream
+# fetches failing. The row was written anyway, with the failed fields as NULL
+# — or, worse, with `current_episode_days` as a literal 0, which is not a null
+# but a confident assertion that USD/JPY is not above 160.
+#
+# Downstream, `state_vector_compute.compute_leg()` scores a leg as
+# `sigmoid(Σ z·w)` over components that HAVE a value, with no renormalization.
+# So a dropped component doesn't widen the estimate, it pulls the score toward
+# 0.5 by exactly its own `z·w`, and the stored artifact records only the moved
+# number. 49.5% of l_cross's weight (jpy_spec_short 0.270 + yen_episode_days
+# 0.225) comes from this one table.
+#
+# Proven in closed form by the 08-09 double-fire, which computed the same date
+# twice ~9.3h apart: l_cross 0.8203 (COT present) vs 0.7815 (COT fetch failed).
+# z(0.8203) − z(0.7815) = +0.2440 against jpy_spec_short's predicted
+# contribution z·w = (10.84/12) × 0.270 = +0.2439. Residual 0.0001.
+#
+# THE FIX: carry the last good reading forward and SAY SO, rather than emitting
+# a null or a fake zero. A stale value that is labelled stale is recoverable;
+# a silent degradation is not.
+#
+# Bounded deliberately. Carrying forward forever would replace a visible fault
+# with an invisible one — the exact trade this vault has been burned by. Past
+# MAX_CARRY_DAYS the field goes back to NULL and the leg degrades honestly.
+MAX_CARRY_DAYS = 7          # COT publishes weekly (Fri), so 7d is one cycle
+
+# Fields carried forward, grouped by the fetch that produces them. Grouping
+# matters: the COT fields must move together or nc_pct_oi ends up paired with
+# another week's report_date.
+CARRY_GROUPS = {
+    "cot": ["cot_report_date", "jpy_nc_long", "jpy_nc_short",
+            "jpy_nc_net", "jpy_open_interest", "jpy_nc_pct_oi"],
+    "jgb": ["jgb_10yr_yield"],
+    "usdjpy": ["usdjpy_spot", "current_episode_days",
+               "above_160", "above_161", "above_162"],
+}
+
+
+def fetch_last_good() -> Optional[dict]:
+    """Most recent yen_mechanics_daily row before today, or None.
+
+    Read-only, publishable key, same REST pattern as upsert_row. Never raises:
+    a failed lookup must leave the pipeline exactly as it was before this
+    function existed, not break it.
+    """
+    try:
+        r = subprocess.run(
+            ["curl", "-s", "--max-time", "20",
+             "-H", f"apikey: {SUPA_KEY}",
+             "-H", f"Authorization: Bearer {SUPA_KEY}",
+             SUPA_URL + "/rest/v1/yen_mechanics_daily"
+             f"?select=*&as_of_date=lt.{TODAY}"
+             "&order=as_of_date.desc&limit=1"],
+            capture_output=True, text=True)
+        if r.returncode != 0 or not r.stdout.strip():
+            return None
+        rows = json.loads(r.stdout)
+        return rows[0] if isinstance(rows, list) and rows else None
+    except Exception:
+        return None
+
+
+def apply_carry_forward(row: dict, cot_ok: bool, spot_ok: bool) -> list:
+    """Fill failed fetches from the last good row, in place.
+
+    Returns a list of human-readable staleness markers (empty when the row is
+    clean). `cot_ok`/`spot_ok` are passed explicitly rather than inferred from
+    the row, because `current_episode_days` and `above_160` are written as
+    0/False on a failed USD/JPY fetch — indistinguishable from real values by
+    inspection, which is the whole bug.
+    """
+    needs = []
+    if not cot_ok:
+        needs.append("cot")
+    if not spot_ok:
+        needs.append("usdjpy")
+    if row.get("jgb_10yr_yield") is None:
+        needs.append("jgb")
+    if not needs:
+        return []
+
+    prev = fetch_last_good()
+    if not prev:
+        return [f"{g}:FETCH_FAILED_NO_PRIOR_ROW" for g in needs]
+
+    try:
+        age = (date.fromisoformat(str(TODAY))
+               - date.fromisoformat(str(prev["as_of_date"])[:10])).days
+    except (ValueError, KeyError, TypeError):
+        return [f"{g}:FETCH_FAILED_BAD_PRIOR_DATE" for g in needs]
+
+    markers = []
+    for group in needs:
+        if age > MAX_CARRY_DAYS:
+            # An honest gap beats a stale value pretending to be today's.
+            markers.append(f"{group}:FETCH_FAILED_STALE_BEYOND_{MAX_CARRY_DAYS}D"
+                           f"(last_good={prev['as_of_date']})")
+            continue
+        filled = [f for f in CARRY_GROUPS[group] if prev.get(f) is not None]
+        for f in filled:
+            row[f] = prev[f]
+        if filled:
+            markers.append(f"{group}:CARRIED_FORWARD_FROM_{prev['as_of_date']}"
+                           f"(age={age}d)")
+        else:
+            markers.append(f"{group}:FETCH_FAILED_PRIOR_ROW_ALSO_EMPTY")
+    return markers
+
+
 # ── Supabase upsert ───────────────────────────────────────────────────────────
 
 def upsert_row(row: dict) -> bool:
@@ -597,6 +709,22 @@ def run_yen_mechanics() -> dict:
         "dominant_pressure":       sig["dominant_pressure"],
         "hypothesis_notes":        sig.get("hypothesis_notes"),
     }
+
+    # G-050: fill failed fetches from the last good row and label them, rather
+    # than persisting NULLs (and a fake current_episode_days=0) that downstream
+    # silently reads as signal. See the CARRY_GROUPS block above.
+    markers = apply_carry_forward(row, cot_ok=cot is not None,
+                                  spot_ok=spot is not None)
+    if markers:
+        row["hypothesis_notes"] = (
+            "[STALE " + "; ".join(markers) + "] "
+            + (row.get("hypothesis_notes") or "")
+        ).strip()
+        print(f"\n  ⚠️  STALE INPUTS ({len(markers)}):")
+        for m in markers:
+            print(f"     {m}")
+    else:
+        print("\n  ✓ All inputs fresh — no carry-forward applied")
 
     ok = upsert_row(row)
     print(f"\n  {'✓' if ok else '⚠️  FAILED'} Supabase upsert: yen_mechanics_daily")
