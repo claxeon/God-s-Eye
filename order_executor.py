@@ -91,6 +91,40 @@ def check_cap(claim_class, order_dollars, bankroll_dollars, caps):
     return True, f"{order_pct:.3f}% of bankroll, within {effective_cap_pct:.3f}% cap"
 
 
+def check_drawdown_halt(unrealized_pl_dollars, bankroll_dollars, caps):
+    """Aggregate drawdown circuit breaker (2026-08-13). Distinct from
+    check_cap(): that limits how much a SINGLE order can add; this limits
+    whether ANY new order is allowed at all once the book is already
+    bleeding. Checked per venue (each venue's own unrealized P&L), not
+    combined across venues -- true cross-venue aggregation isn't built.
+
+    unrealized_pl_dollars: signed float, current aggregate unrealized P&L
+    across the venue's open positions (negative = loss). Caller fetches
+    this from the venue (Alpaca.unrealized_pl_dollars() /
+    Oanda.unrealized_pl_dollars()) -- this function stays pure/testable,
+    same as check_cap().
+
+    Does NOT close any open position -- it only blocks new orders. A
+    breached halt with existing open losing positions still sitting open
+    is a known, accepted gap: per-position stop-loss is scoped (15-20% DD
+    per position, per the 2026-08-13 decision) but not implemented."""
+    if bankroll_dollars <= 0:
+        return False, f"invalid bankroll_dollars {bankroll_dollars!r}"
+    halt_pct = caps.get("_aggregate_drawdown_halt_pct")
+    if halt_pct is None:
+        return True, "no aggregate drawdown halt configured"
+    if unrealized_pl_dollars >= 0:
+        return True, f"book is flat/positive (unrealized P&L {unrealized_pl_dollars:+.2f})"
+    drawdown_pct = abs(unrealized_pl_dollars) / bankroll_dollars * 100
+    if drawdown_pct >= halt_pct:
+        return False, (f"aggregate drawdown {drawdown_pct:.3f}% of bankroll "
+                        f"(unrealized P&L {unrealized_pl_dollars:+.2f}) has reached "
+                        f"the {halt_pct:.3f}% halt threshold -- ALL new orders on "
+                        f"this venue refused until it recovers or positions are "
+                        f"closed manually")
+    return True, f"aggregate drawdown {drawdown_pct:.3f}%, below {halt_pct:.3f}% halt"
+
+
 def _audit(entry, audit_path=AUDIT_LOG):
     entry = {"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), **entry}
     os.makedirs(os.path.dirname(audit_path), exist_ok=True)

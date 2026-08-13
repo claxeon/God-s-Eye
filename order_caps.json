@@ -2,6 +2,8 @@
   "_note": "Sizing caps mirrored from Revenue Plan.md's Path 1 order card, kept here as structured policy so order_executor.py enforces them in code instead of trusting a human to read prose before submitting an order. Update this file when Revenue Plan.md's caps change -- they already have, twice (Hormuz 6%->4%, recession 2%->1%, both cut 2026-08-04). An unlisted claim_class is refused, not defaulted to the absolute ceiling -- a new market must be added here deliberately before it can be sized.",
   "_absolute_ceiling_pct": 10.0,
   "_absolute_ceiling_note": "Revenue Plan.md: 'Never size any single framework claim above 10% regardless of stated edge.' Applies even if a claim_class entry below is misconfigured above 10.",
+  "_aggregate_drawdown_halt_pct": 10.0,
+  "_aggregate_drawdown_halt_note": "2026-08-13, user-set. Checked per venue (Alpaca book and OANDA book independently -- NOT combined cross-venue) before any new order: if that venue's current aggregate unrealized P&L across open positions is already a loss of >=10% of bankroll, EVERY new order on that venue is refused regardless of its own claim_class headroom. This is separate from and in addition to the per-order max_pct_of_bankroll caps below -- entry-sizing limits how much goes IN, this limits how much MORE goes in once the book is already bleeding. Per-position stop-loss (closing an individual losing position automatically, target range discussed: 15-20% DD per position) is scoped but NOT implemented -- this halt only blocks NEW orders, it does not close anything that's already open.",
   "claim_classes": {
     "hormuz_normal_dec31": {
       "max_pct_of_bankroll": 4.0,
@@ -10,6 +12,18 @@
     "recession_2026": {
       "max_pct_of_bankroll": 1.0,
       "note": "Revenue Plan.md Path 1 #2 (US recession called by end of 2026, YES). Cut from 2% on 2026-08-04. Untested claim class, zero graded resolutions."
+    },
+    "gold_reserve_diversification": {
+      "max_pct_of_bankroll": 1.0,
+      "note": "2026-08-13, user-set. Track 2 conditional idea (GLD/IAU, tied to L2 gold_usd_12m_ret trigger). Untested tier -- same as recession_2026 -- zero closed trades. Raise only after 5 closed positions in this class with positive cumulative P&L."
+    },
+    "defense_basket": {
+      "max_pct_of_bankroll": 1.0,
+      "note": "2026-08-13, user-set. Track 2 conditional idea (ITA/XAR/PPA, tied to L6 defense-supplemental trigger). Untested tier. Raise only after 5 closed positions in this class with positive cumulative P&L."
+    },
+    "jpy_carry_unwind": {
+      "max_pct_of_bankroll": 1.0,
+      "note": "2026-08-13, user-set. Track 2 conditional idea (short USD/JPY via OANDA, tied to l_cross/yen_episode_days trigger). Untested tier. Raise only after 5 closed positions in this class with positive cumulative P&L."
     }
   }
 }
