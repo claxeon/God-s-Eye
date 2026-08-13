@@ -91,11 +91,21 @@ class Kalshi:
 
     # -- writes (user-confirmed contexts only) --
     def place_order(self, ticker, side, count, price_dollars,
-                    tif="immediate_or_cancel"):
-        """side: 'bid' buys YES, 'ask' sells YES. Returns V2 response."""
+                    tif="immediate_or_cancel", client_order_id=None):
+        """side: 'bid' buys YES, 'ask' sells YES. Returns V2 response.
+
+        client_order_id: caller-supplied idempotency key. Added 2026-08-12
+        (G-062 mechanism-gate work) — this used to always generate a FRESH
+        uuid4 internally, which means a caller retrying after a timeout (not
+        knowing whether the first attempt landed) had no way to make the
+        retry idempotent: two calls for the same logical order produced two
+        different ids and could both fill. Callers that care about
+        idempotency (order_executor.py) must generate one id per logical
+        order and pass it on every attempt. Default preserves old behavior
+        for direct/manual callers."""
         return self.req("POST", "/portfolio/events/orders", {
             "ticker": ticker,
-            "client_order_id": str(uuid.uuid4()),
+            "client_order_id": client_order_id or str(uuid.uuid4()),
             "side": side,
             "count": f"{count:.2f}",
             "price": f"{price_dollars:.4f}",

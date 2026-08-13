@@ -224,13 +224,15 @@ def main():
     predictions = fetch_open_predictions()
     if not predictions:
         print("  No open predictions found.")
-        return
+        return 0
 
     print(f"\n  {len(predictions)} open prediction(s):\n")
 
     snapshots_written = 0
     needs_resolution  = []   # overdue predictions
     slug_not_found    = []   # stale/invalid slugs
+    missing_slugs     = []   # G-051: every slug that did NOT get a row written this run,
+                              # for any reason (not found, unparseable prob, or write failure)
 
     for pred in predictions:
         pid      = pred["id"]
@@ -259,6 +261,7 @@ def main():
         if market is None:
             print(f"       ⚠️  slug not found on {venue}: {slug[:60]}")
             slug_not_found.append(pid)
+            missing_slugs.append(slug)
             if overdue:
                 needs_resolution.append({"id": pid, "claim": pred["claim_text"],
                                          "resolves_by": resolves, "framework_prob": fp,
@@ -290,6 +293,10 @@ def main():
                 print(f"       → snapshot written")
             else:
                 print(f"       ⚠️  failed to write snapshot")
+                missing_slugs.append(slug)
+        else:
+            print(f"       ⚠️  could not extract yes_prob from {venue} response")
+            missing_slugs.append(slug)
 
         if overdue or is_closed:
             needs_resolution.append({
@@ -301,10 +308,25 @@ def main():
             })
         print()
 
+    # ── Batch completeness (G-051) ──────────────────────────────────────────────
+    # EXACT count, not >= : the 08-09 concurrent-fire incident wrote 14 rows for
+    # 7 slugs (each doubled), which a ">=" check would have passed silently.
+    # N open predictions WITH a market_slug in -> N rows out, every time.
+    n_open_with_slug = sum(1 for p in predictions if p.get("market_slug"))
+    batch_complete = (snapshots_written == n_open_with_slug)
+
     # ── Summary ───────────────────────────────────────────────────────────────
     print("─" * 64)
     print(f"  Snapshots written today: {snapshots_written}")
     print(f"  Stale/missing slugs:     {len(slug_not_found)}  {slug_not_found}")
+    if batch_complete:
+        print(f"  Batch complete: {snapshots_written}/{n_open_with_slug}")
+    else:
+        # This exact string is grepped by daily_loop.sh (via state_vector_daily.sh's
+        # stderr) to surface the failure past the `|| true` this script is called
+        # under — a non-zero exit alone was silently swallowed for 4+ instances of
+        # this failure (07-29, 08-01 x2, 08-03) before anything read it.
+        print(f"  BATCH_INCOMPLETE: wrote {snapshots_written}/{n_open_with_slug} — missing: {missing_slugs}")
 
     if needs_resolution:
         print(f"\n  ⚠️  MANUAL RESOLUTION REQUIRED ({len(needs_resolution)} predictions):\n")
@@ -327,8 +349,12 @@ def main():
         "snapshots_written":  snapshots_written,
         "needs_resolution":   needs_resolution,
         "slug_not_found":     slug_not_found,
+        "batch_complete":     batch_complete,
+        "missing_slugs":      missing_slugs,
     }
     print("\nJSON_RESULT:", json.dumps(result))
+
+    return 0 if batch_complete else 1
 
 
 # ── Data-prediction auto-checkers ────────────────────────────────────────────
@@ -657,7 +683,10 @@ if __name__ == "__main__":
     print(f"  {brent6m_status}\n")
 
     # 2. Polymarket snapshot for open predictions with slugs
-    main()
+    main_rc = main()
 
-    # 3. Data condition checks for auto-resolvable predictions
+    # 3. Data condition checks for auto-resolvable predictions — always runs,
+    # independent of whether the snapshot batch above was complete.
     data_conditions = check_data_predictions()
+
+    sys.exit(main_rc)
