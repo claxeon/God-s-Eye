@@ -73,6 +73,15 @@ class Oanda:
         per-position like Alpaca."""
         return float(self.account_summary()["account"]["unrealizedPL"])
 
+    def open_trades(self):
+        return self.req("GET", f"/v3/accounts/{self.account_id}/openTrades")["trades"]
+
+    def close_trade(self, trade_id):
+        """Fully closes ONE trade by ID via OANDA's dedicated close
+        endpoint -- not an offsetting order this client constructs, same
+        reasoning as Alpaca's close_position()."""
+        return self.req("PUT", f"/v3/accounts/{self.account_id}/trades/{trade_id}/close")
+
     # -- writes (user-confirmed contexts only) --
     def place_order(self, instrument, units, client_order_id=None,
                      time_in_force="FOK", order_type="MARKET"):

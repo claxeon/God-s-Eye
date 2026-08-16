@@ -83,6 +83,40 @@ class Alpaca:
         except urllib.error.HTTPError as e:
             raise RuntimeError(f"{e.code}: {e.read().decode()[:300]}") from None
 
+    def bars(self, symbol, timeframe="5Min", start=None, end=None,
+              limit=10000, feed="iex"):
+        """Historical OHLCV bars. feed='iex' works on the free/basic plan --
+        'sip' (full consolidated tape) needs a paid subscription and 403s
+        without one. start/end: 'YYYY-MM-DD' or full RFC3339. Paginates via
+        Alpaca's next_page_token since a multi-year 5Min request exceeds one
+        response page; returns the full concatenated bar list."""
+        import urllib.parse
+        out = []
+        page_token = None
+        while True:
+            q = {"timeframe": timeframe, "limit": str(limit), "feed": feed,
+                 "adjustment": "raw"}
+            if start:
+                q["start"] = start
+            if end:
+                q["end"] = end
+            if page_token:
+                q["page_token"] = page_token
+            url = f"{DATA_BASE}/v2/stocks/{symbol}/bars?{urllib.parse.urlencode(q)}"
+            r = urllib.request.Request(url)
+            r.add_header("APCA-API-KEY-ID", self.key_id)
+            r.add_header("APCA-API-SECRET-KEY", self.secret_key)
+            try:
+                with urllib.request.urlopen(r, timeout=30) as resp:
+                    payload = json.loads(resp.read())
+            except urllib.error.HTTPError as e:
+                raise RuntimeError(f"{e.code}: {e.read().decode()[:300]}") from None
+            out.extend(payload.get("bars") or [])
+            page_token = payload.get("next_page_token")
+            if not page_token:
+                break
+        return out
+
     # -- writes (user-confirmed contexts only) --
     def place_order(self, symbol, side, qty, order_type="market",
                      time_in_force="day", client_order_id=None,
@@ -99,6 +133,12 @@ class Alpaca:
         if limit_price is not None:
             body["limit_price"] = f"{limit_price:.2f}"
         return self.req("POST", "/v2/orders", body)
+
+    def close_position(self, symbol):
+        """Market-closes the ENTIRE position in symbol. Dedicated endpoint
+        (not an offsetting order this client constructs) so there's no
+        chance of getting the side/qty wrong when exiting."""
+        return self.req("DELETE", f"/v2/positions/{symbol}")
 
 
 if __name__ == "__main__":

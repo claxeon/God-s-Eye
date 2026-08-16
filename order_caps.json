@@ -3,7 +3,9 @@
   "_absolute_ceiling_pct": 10.0,
   "_absolute_ceiling_note": "Revenue Plan.md: 'Never size any single framework claim above 10% regardless of stated edge.' Applies even if a claim_class entry below is misconfigured above 10.",
   "_aggregate_drawdown_halt_pct": 10.0,
-  "_aggregate_drawdown_halt_note": "2026-08-13, user-set. Checked per venue (Alpaca book and OANDA book independently -- NOT combined cross-venue) before any new order: if that venue's current aggregate unrealized P&L across open positions is already a loss of >=10% of bankroll, EVERY new order on that venue is refused regardless of its own claim_class headroom. This is separate from and in addition to the per-order max_pct_of_bankroll caps below -- entry-sizing limits how much goes IN, this limits how much MORE goes in once the book is already bleeding. Per-position stop-loss (closing an individual losing position automatically, target range discussed: 15-20% DD per position) is scoped but NOT implemented -- this halt only blocks NEW orders, it does not close anything that's already open.",
+  "_aggregate_drawdown_halt_note": "2026-08-13, user-set. Checked per venue (Alpaca book and OANDA book independently -- NOT combined cross-venue) before any new order: if that venue's current aggregate unrealized P&L across open positions is already a loss of >=10% of bankroll, EVERY new order on that venue is refused regardless of its own claim_class headroom. This is separate from and in addition to the per-order max_pct_of_bankroll caps below -- entry-sizing limits how much goes IN, this limits how much MORE goes in once the book is already bleeding.",
+  "_per_position_stop_loss_pct": 15.0,
+  "_per_position_stop_loss_note": "2026-08-13, user-set (range discussed was 15-20%; picked the conservative/tighter end, same reasoning as the 10% pick within the 10-12% aggregate-halt range). Checked per POSITION against its OWN cost basis, not against bankroll -- a position down 15% from where it was entered gets closed by stop_loss_monitor.py. This is a separate script, not part of the order-time cap checks -- it needs to run periodically (nothing in this vault runs a persistent background process) rather than being triggered by a new order.",
   "claim_classes": {
     "hormuz_normal_dec31": {
       "max_pct_of_bankroll": 4.0,
@@ -24,6 +26,34 @@
     "jpy_carry_unwind": {
       "max_pct_of_bankroll": 1.0,
       "note": "2026-08-13, user-set. Track 2 conditional idea (short USD/JPY via OANDA, tied to l_cross/yen_episode_days trigger). Untested tier. Raise only after 5 closed positions in this class with positive cumulative P&L."
+    },
+    "energy_chokepoint": {
+      "max_pct_of_bankroll": 10.0,
+      "note": "2026-08-13, user-set. Track 2 conditional idea (XLE, tied to L1 War/Energy Chokepoints -- the framework's single highest-weight leg, w=0.20 -- and DR-1 threshold crossings). Deliberately set AT the absolute ceiling, not the 1% untested-tier default used for gold/defense/JPY -- explicit user override, not a silent scope creep. Still zero closed trades; the 10% cap is the hard ceiling regardless, per Revenue Plan.md."
+    },
+    "treasury_duration": {
+      "max_pct_of_bankroll": 10.0,
+      "note": "2026-08-13, user-set. Track 2 conditional idea (TBF -- inverse/short 20+yr Treasury, benefits from RISING long yields, matching the steepener thesis's actual direction -- tied to a CB-D composite-band crossing trigger). Deliberately set AT the absolute ceiling, same override as energy_chokepoint. Zero closed trades."
+    },
+    "private_credit_nbfi": {
+      "max_pct_of_bankroll": 10.0,
+      "note": "2026-08-13, user-set (growth/diversification directive). SHORT KRE (regional banks -- real counterparty exposure to non-bank/private-credit lending). Tied to L3 Private Credit/NBFI (w=0.12) -- the user's own named 4th pillar, and the most rigorously validated finding in the 08-11 report (FSB 'Report on Vulnerabilities in Private Credit' 2026-05-06, IMF GFSR Oct 2025). L3 itself had no position against it until this entry despite being central to the whole thesis. At the absolute ceiling, same as energy/treasury. Zero closed trades."
+    },
+    "food_fertilizer": {
+      "max_pct_of_bankroll": 10.0,
+      "note": "2026-08-13, user-set (growth/diversification directive). LONG MOS (Mosaic, fertilizer producer). Tied to L5 Food/Fertilizer (w=0.12) -- urea prices up >80% since Feb 2026, driven specifically by the Hormuz disruption (Gulf states supply ~25% of global urea exports) per the 08-11 report's L4/L5/L6 research. At the absolute ceiling. Zero closed trades."
+    },
+    "maritime_insurance": {
+      "max_pct_of_bankroll": 10.0,
+      "note": "2026-08-13, user-set (growth/diversification directive). LONG FRO (Frontline, tanker shipping). Tied to L8 Maritime/Insurance (w=0.10) -- war-risk premiums on Hormuz transits rose from ~0.25% to 1-3% of hull value per the 08-11 report, and Red Sea/Bab-el-Mandeb rerouting has pushed up tanker day-rates, a tailwind for shipping companies. At the absolute ceiling. Zero closed trades."
+    },
+    "chf_haven_shift": {
+      "max_pct_of_bankroll": 10.0,
+      "note": "2026-08-13, user-set. Raised from the 1% untested tier to the 10% absolute ceiling same day -- on reconsideration, this idea came from the same quality of live, current, well-evidenced research as energy_chokepoint/private_credit_nbfi/food_fertilizer/maritime_insurance (all 10%), so the original 1% placement was an inconsistency, not a deliberate distinction. LONG USD/CHF via OANDA. Tied to L1 (Hormuz/Middle East risk) -- CHF explicitly losing its safe-haven status this cycle specifically because the crisis directly involves the US, so haven flows go to USD instead of CHF (SNB at 0% policy rate, CHF 'weakest G10 currency this quarter'). Direction is the OPPOSITE of Track 2's original naive short-USD-basket idea for L2 -- DXY itself is range-bound (99.5-100, 9 sessions) so that idea was dropped as fighting a flat market. Zero closed trades."
+    },
+    "cad_oil_linkage": {
+      "max_pct_of_bankroll": 10.0,
+      "note": "2026-08-13, user-set. Raised from the 1% untested tier to the 10% absolute ceiling same day, same reconsideration as chf_haven_shift -- comparable evidence quality to the 10%-tier equity growth positions, the original 1% was an inconsistency. SHORT USD/CAD (long CAD) via OANDA. Tied to L1 -- Canada is a major oil exporter and USD/CAD has been tracking the same Hormuz-driven crude strength directly (near 1.3930, a two-month low, as of 2026-08-11, per live research). Same L1 dynamic as chf_haven_shift, different currency. Two other candidates researched the same session and explicitly SKIPPED for lacking a clean current signal: NOK (real oil correlation but Brent has pulled back from its $100.69 July 23 peak with nothing to trade against right now) and CNH/AUD (genuinely two-sided). Zero closed trades. jpy_carry_unwind deliberately NOT raised alongside these two -- it is fighting the current CFTC positioning trend (covering, not rebuilding) and its trigger has not fired, a genuinely more speculative position than either of these."
     }
   }
 }
