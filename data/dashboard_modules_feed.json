@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-18T06:08:37Z",
+  "generated_at": "2026-08-18T19:16:16Z",
   "note": "Additive extension per user request (2026-08-18) \u2014 does NOT replace or reweight state_vector_history / leg_components. Cross-reference, don't merge, until a maintainer deliberately decides to fold a specific module observable into an existing leg (see MODULES_README.md).",
   "panels": [
     {
@@ -7,7 +7,7 @@
       "title": "Treasury Market Function",
       "current_state": "NORMAL",
       "confidence": "INFERRED",
-      "computed_at": "2026-08-18T06:08:26Z",
+      "computed_at": "2026-08-18T19:13:38Z",
       "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
       "trend_1m": "insufficient history",
       "trend_3m": "insufficient history",
@@ -17,23 +17,23 @@
         "DGS10": "2026-08-14",
         "DGS20": "2026-08-14",
         "DGS30": "2026-08-14",
-        "SOFR": "2026-08-14",
+        "SOFR": "2026-08-17",
         "IORB": "2026-08-18",
         "WTREGEN": "2026-08-12",
         "WRESBAL": "2026-08-12",
-        "RRPONTSYD": "2026-08-17"
+        "RRPONTSYD": "2026-08-18"
       },
       "top_drivers": {
         "curve_2s10s_bps": 51.0,
         "curve_5s30s_bps": 89.0,
         "curve_10s30s_bps": 57.0,
         "curve_2s30s_bps": 108.0,
-        "sofr": 3.62,
+        "sofr": 3.66,
         "iorb": 3.65,
         "tga_balance": 963950.0,
         "reserve_balances": 2944059.0,
-        "on_rrp_balance": 0.255,
-        "sofr_minus_iorb_bps": -3.0,
+        "on_rrp_balance": 0.155,
+        "sofr_minus_iorb_bps": 1.0,
         "bid_to_cover_30_year": 2.39,
         "bid_to_cover_10_year": 2.53
       },
@@ -88,7 +88,7 @@
       "title": "Japan Channels (FX intervention / reallocation / carry unwind)",
       "current_state": "WATCH",
       "confidence": "INFERRED",
-      "computed_at": "2026-08-18T06:08:36Z",
+      "computed_at": "2026-08-18T19:15:58Z",
       "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
       "trend_1m": "insufficient history",
       "trend_3m": "insufficient history",
@@ -97,7 +97,7 @@
         "channel_a_intervention_flag": false,
         "channel_a_daily_move_pct": -0.088,
         "channel_c_yen_strength_pct_1d": 0.088,
-        "channel_b_hedged_spread_pp": 0.536,
+        "channel_b_hedged_spread_pp": 0.736,
         "channel_b_repatriation_favoured": true
       },
       "countervailing_evidence": [
@@ -129,20 +129,20 @@
       "title": "Dollar Funding and Collateral Stress",
       "current_state": "NORMAL",
       "confidence": "SPECULATIVE",
-      "computed_at": "2026-08-18T06:08:36Z",
+      "computed_at": "2026-08-18T19:15:59Z",
       "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
       "trend_1m": "insufficient history",
       "trend_3m": "insufficient history",
       "data_freshness": {
-        "SOFR": "2026-08-14",
+        "SOFR": "2026-08-17",
         "IORB": "2026-08-18",
         "DTWEXBGS": "2026-08-14"
       },
       "top_drivers": {
-        "sofr": 3.62,
+        "sofr": 3.66,
         "iorb": 3.65,
         "dollar_index_broad": 118.9028,
-        "sofr_minus_iorb_bps": -3.0,
+        "sofr_minus_iorb_bps": 1.0,
         "stress_classification": "UNKNOWN \u2014 requires FIMA/swap-line/cross-currency-basis feeds not wired in this deployment"
       },
       "countervailing_evidence": [
@@ -198,24 +198,24 @@
     {
       "panel_id": "4_refined_products",
       "title": "Energy: Crude vs. Refined Products",
-      "current_state": "CRITICAL",
-      "confidence": "CONFIRMED",
-      "computed_at": "2026-08-18T06:08:37Z",
+      "current_state": "DATA_QUALITY_FAILURE",
+      "confidence": "SPECULATIVE",
+      "computed_at": "2026-08-18T19:16:15Z",
       "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
       "trend_1m": "insufficient history",
       "trend_3m": "insufficient history",
       "data_freshness": {
         "DCOILWTICO": "2026-08-11",
-        "EIA_ULSD": "2026-08-11"
+        "EIA_ULSD": null
       },
       "top_drivers": {
         "wti_spot_usd_bbl": 84.77,
-        "ulsd_ny_harbor_usd_bbl": 181.65,
-        "crack_spread_gate": "OK",
-        "ulsd_wti_crack_usd_bbl": 96.88000000000001
+        "ulsd_ny_harbor_usd_bbl": null,
+        "crack_spread_gate": "DATA_QUALITY_FAILURE",
+        "ulsd_wti_crack_usd_bbl": null
       },
       "countervailing_evidence": [
-        "Crack spread dates: WTI 2026-08-11, ULSD 2026-08-11 \u2014 SAME DATE, cleanly matched.",
+        "Crack spread gate FAILED: missing product or crude price; delivery months not matched (product=None, crude='2026-08-11')",
         "distillate_inventory_pct_vs_5yr: UNKNOWN \u2014 use market_mechanics.py's existing EIA weekly flow tracker (WPULEUS3 baseline already validated there) rather than a second unverified series ID here (requires: paid/authenticated feed)",
         "refinery_utilization_pct: UNKNOWN \u2014 same \u2014 see market_mechanics.py EIA_FLOW_BASELINES['WPULEUS3'] (requires: paid/authenticated feed)",
         "gasoil_brent_crack: UNKNOWN \u2014 needs matched-month ICE gasoil + Brent futures, no free feed wired (requires: paid/authenticated feed)",
@@ -229,6 +229,7 @@
         "A crack spread computed from mismatched units, mismatched delivery months/dates, or a futures-vs-physical mismatch is a DATA_QUALITY_FAILURE, not a signal, by construction of matched_crack_spread() in godseye_modules_common.py."
       ],
       "missing_data": [
+        "ulsd_spot",
         "distillate_inventory_pct_vs_5yr",
         "refinery_utilization_pct",
         "gasoil_brent_crack",
@@ -252,7 +253,7 @@
       "title": "Fertilizer Procurement Clock",
       "current_state": "NORMAL",
       "confidence": "SPECULATIVE",
-      "computed_at": "2026-08-18T06:08:37Z",
+      "computed_at": "2026-08-18T19:16:15Z",
       "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
       "trend_1m": "insufficient history",
       "trend_3m": "insufficient history",
@@ -325,7 +326,7 @@
       "title": "Country Vulnerability Matrix",
       "current_state": "DATA_QUALITY_FAILURE",
       "confidence": "SPECULATIVE",
-      "computed_at": "2026-08-18T06:08:37Z",
+      "computed_at": "2026-08-18T19:16:15Z",
       "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
       "trend_1m": "insufficient history",
       "trend_3m": "insufficient history",
@@ -386,14 +387,14 @@
       "title": "Policy Response",
       "current_state": "NORMAL",
       "confidence": "INFERRED",
-      "computed_at": "2026-08-18T06:08:37Z",
+      "computed_at": "2026-08-18T19:16:16Z",
       "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
       "trend_1m": "insufficient history",
       "trend_3m": "insufficient history",
       "data_freshness": {},
       "top_drivers": {
         "reserve_balances": 2944059.0,
-        "on_rrp_balance": 0.255,
+        "on_rrp_balance": 0.155,
         "tga_balance": 963950.0,
         "logged_policy_events": 0,
         "policy_buffer_score_liquidity_only": "computed",
@@ -451,13 +452,13 @@
       "title": "Claims, Falsifiers, and Contradictory Evidence",
       "current_state": "NORMAL",
       "confidence": "CONFIRMED",
-      "computed_at": "2026-08-18T06:08:37Z",
+      "computed_at": "2026-08-18T19:16:16Z",
       "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
       "trend_1m": "insufficient history",
       "trend_3m": "insufficient history",
       "data_freshness": {},
       "top_drivers": {
-        "claim_count": 4
+        "claim_count": 5
       },
       "countervailing_evidence": [
         "weakening_candidates is a MECHANICAL suggestion (contradictory evidence outnumbers supporting evidence), not an automatic status change \u2014 a maintainer should review before flipping a claim's status to WEAKENING/FALSIFIED, consistent with how the vault's own TIC Analysis note retracted a claim only after direct verification, not on suspicion alone."
@@ -470,16 +471,18 @@
         "C1_fertilizer_2027_crop_input_risk",
         "C2_japan_ust_reallocation",
         "C3_refined_product_scarcity_not_crude",
-        "C4_irgc_offensive_posture_shift"
+        "C4_irgc_offensive_posture_shift",
+        "C5_pickaxe_mountain_strike_scenario"
       ]
     },
     {
       "panel_id": "10_data_freshness_quality",
       "title": "Data Freshness and Data Quality",
-      "total_observables_tracked": 101,
-      "total_unknown": 73,
-      "coverage_pct": 27.7,
+      "total_observables_tracked": 102,
+      "total_unknown": 74,
+      "coverage_pct": 27.5,
       "panels_in_data_quality_failure": [
+        "4_refined_products",
         "6_country_vulnerability"
       ]
     }
