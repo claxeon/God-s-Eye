@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "updated": "2026-08-18",
+  "affordability_ratio_watch": 1.3,
+  "affordability_ratio_critical": 2.0,
+  "tender_undersubscription_watch_pct": 15.0,
+  "tender_undersubscription_critical_pct": 40.0,
+  "planting_window_urgency_days_elevated": 45,
+  "planting_window_urgency_days_critical": 14,
+  "note": "fertilizer_fm_score in state_vector_compute.py is already hardcoded at ceiling (1.00); this module tracks procurement/application evidence the existing pipeline has no slot for, per Framework - Legs 5 to 9's stated upgrade trigger (IRC Phase 5 famine declaration), which this module does not itself claim to satisfy.",
+  "stale_after_days": {
+    "tender_data": 30,
+    "plant_status": 14,
+    "application_survey": 90
+  }
+}

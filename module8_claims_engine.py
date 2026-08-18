@@ -1,0 +1,431 @@
+#!/usr/bin/env python3
+"""
+God's Eye — Module 8: Claim, Epistemic, and Falsification Engine
+====================================================================
+Purpose: every thesis claim the framework stores gets a structured record —
+mechanism, required evidence, falsifier, confidence tier, evidence log,
+contradictory-evidence log, score history, and status — instead of living
+only as prose in an Intelligence Brief. This is the generalized version of
+the discipline the vault's own notes have been doing by hand (e.g. the TIC
+Analysis note's "Framework Trigger Assessment" table, or the Aug 17/18
+briefs' Verification Summary sections): this module makes that a queryable
+schema instead of a per-note convention.
+
+Storage: data/claims.json (flat JSON array, same pattern as module7's
+policy_events_log.json — no new database dependency introduced). A future
+maintainer can migrate this to a `claims` Supabase table (see
+schema_v3_extension_modules.sql) without changing this module's interface.
+
+Seeded with real claims already live in the vault as of 2026-08-18, so the
+engine ships non-empty and demonstrably matches actual framework content
+rather than a synthetic example:
+  C1. The spec's own worked example — Gulf fertilizer disruption / 2027
+      crop-input risk.
+  C2. Japan Treasury reallocation (Leg 2) — confirmed two-consecutive-month
+      UST reduction, per Kinetic & Financial Update - 2026-08-18.md.
+  C3. Refined-product (diesel) scarcity is a refining/logistics constraint,
+      not a crude-availability constraint — per Daily Macro Risk Report -
+      2026-08-17.md and module4's live crack-spread read.
+  C4. IRGC offensive-posture shift raises Leg 1/8 escalation risk — per
+      Kinetic & Financial Update - 2026-08-18.md.
+  C5. Pickaxe Mountain strike scenario — F1 (conventional) vs. F2 (nuclear)
+      branches, per Scenarios/Scenarios - Five Primary Branch Tree.md Scenario F,
+      backfilled 2026-08-18.
+
+Run:
+  python3 module8_claims_engine.py --list
+  python3 module8_claims_engine.py --evidence <claim_id> --text "..." --supports/--contradicts
+  python3 module8_claims_engine.py --json
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from dataclasses import dataclass, field, asdict
+from datetime import date
+from pathlib import Path
+from typing import Optional
+
+from godseye_modules_common import (
+    ClaimStatus, ConfidenceTier, ModuleResult, Observable, SignalState,
+    now_iso, supabase_upsert,
+)
+
+CLAIMS_PATH = Path(__file__).resolve().parent / "data" / "claims.json"
+
+
+@dataclass
+class Claim:
+    claim_id: str
+    claim_text: str
+    mechanism: str
+    required_evidence: str
+    observable_indicators: list
+    source_hierarchy: list
+    threshold: str
+    time_window: str
+    expected_market_transmission: str
+    expected_physical_transmission: str
+    falsifier: str
+    confidence_tier: str = ConfidenceTier.INFERRED.value
+    last_reviewed: str = ""
+    evidence_log: list = field(default_factory=list)
+    contradictory_evidence_log: list = field(default_factory=list)
+    score_history: list = field(default_factory=list)
+    status: str = ClaimStatus.ACTIVE.value
+
+
+SEED_CLAIMS = [
+    Claim(
+        claim_id="C1_fertilizer_2027_crop_input_risk",
+        claim_text="Gulf fertilizer disruption creates material 2027 crop-input risk.",
+        mechanism="Reduced ammonia/urea/sulfur production and shipping availability raises "
+                   "procurement costs and can reduce fertilizer application before key planting windows.",
+        required_evidence="Persistent plant outages or shipping disruption, elevated tender "
+                           "prices or failed tenders, reduced import volume, delayed delivery, "
+                           "reduced farmer application, or missed planting windows.",
+        observable_indicators=["gulf_plant_operating_status", "india_tender_data",
+                                "application_rate_surveys", "planted_acreage_surveys"],
+        source_hierarchy=["FAO", "USDA FAS", "primary tender bulletins", "JPMorgan Global Research (secondary, institutional)"],
+        threshold="Any two of: failed/undersubscribed major tender, confirmed plant outage >30 days, "
+                   "application-rate survey showing >10% YoY decline",
+        time_window="through H1 2027 planting/application cycles",
+        expected_market_transmission="Urea/DAP/potash futures and physical premiums rise; "
+                                      "JPMorgan's own call: food inflation 2.8% (H1 2026) -> 5% (H1 2027)",
+        expected_physical_transmission="Reduced fertilizer application in import-dependent "
+                                        "countries -> lower yields in subsequent harvests",
+        falsifier="India, Brazil, Bangladesh, Pakistan, and relevant East African buyers secure "
+                   "normal volumes on schedule; Gulf plant operations normalize; export "
+                   "restrictions ease; application surveys remain stable.",
+        confidence_tier=ConfidenceTier.INFERRED.value,
+        evidence_log=[
+            {"date": "2026-08-18", "text": "JPMorgan 'Food Security Is National Security' report "
+             "confirmed as real (not ZeroHedge fabrication); projects food inflation 2.8%->5% H1 2026->H1 2027.",
+             "source": "Kinetic & Financial Update - 2026-08-18.md"},
+        ],
+    ),
+    Claim(
+        claim_id="C2_japan_ust_reallocation",
+        claim_text="Japan is structurally reducing US Treasury holdings (Leg 2 petrodollar/"
+                    "Treasury-demand thesis), not just running a one-off FX-intervention blip.",
+        mechanism="Higher JGB yields improve the domestic alternative for Japanese institutions; "
+                   "yen-defense needs mobilize dollar liquidity; both can look like 'Japan selling "
+                   "Treasuries' without being the same mechanism — see module2_japan_channels.py.",
+        required_evidence="Two or more consecutive confirmed monthly TIC declines in Japan's UST "
+                           "holdings, ideally with the reallocation (Channel B) rather than pure "
+                           "intervention (Channel A) mechanism corroborated.",
+        observable_indicators=["japan_tic_holdings_mom", "hedged_ust_vs_jgb_spread_pp",
+                                "channel_a_intervention_flag"],
+        source_hierarchy=["US Treasury TIC primary release", "Bloomberg (secondary, high-reliability)",
+                           "Wolf Street (secondary, previously produced an uncorroborated figure — see TIC Analysis - April-May 2026.md)"],
+        threshold="2+ consecutive confirmed monthly declines AND Channel B (hedged spread) "
+                   "showing repatriation-favoured sign",
+        time_window="rolling, evaluated at each monthly TIC release",
+        expected_market_transmission="Weaker marginal UST demand -> upward pressure on long-end "
+                                      "term premium, contributing to 30Y yield moves",
+        expected_physical_transmission="N/A (financial-flow claim, not a physical-supply claim)",
+        falsifier="If JGB yields rise but hedged Treasury pickup remains strongly positive and "
+                   "Japanese flows remain outward, downgrade the reallocation thesis. If a monthly "
+                   "decline is later revealed as intervention-driven bill selling with 90%+ bills "
+                   "composition (as May 2026 was), that month does not count toward this claim's "
+                   "threshold as reallocation evidence.",
+        confidence_tier=ConfidenceTier.INFERRED.value,
+        evidence_log=[
+            {"date": "2026-08-17", "text": "June TIC data confirmed via convergent sourcing: Japan "
+             "-2.3% MoM to $1.116T, second consecutive confirmed monthly reduction after May's "
+             "confirmed $66.7B cut.", "source": "Daily Macro Risk Report - 2026-08-17.md"},
+            {"date": "2026-07-22", "text": "May's decline confirmed as ~90% bills, ~10% long-term "
+             "notes/bonds — an intervention-composition signature, not a clean reallocation signature.",
+             "source": "TIC Analysis - April-May 2026.md"},
+            {"date": "2026-08-18", "text": "Aggregate foreign UST holdings confirmed via convergence: "
+             "Wolf Street's $9.37T May base minus Bloomberg's reported $72.1B June decline = $9.298T, "
+             "matching the report's $9.299T almost exactly. Bloomberg headline: declines in 3 of the "
+             "past 4 months from the Feb record high.", "source": "Daily Macro Risk Report - 2026-08-17.md"},
+            {"date": "2026-08-18", "text": "Country-level June TIC figures confirmed via convergent "
+             "Bloomberg sourcing (not yet the raw ticdata.treasury.gov file, which is still "
+             "Dec-2025-capped): China $633.4B (-4% MoM, lowest since Sept 2008, -13%+ YoY); UK $939.9B "
+             "(-1% MoM). Both land within rounding of independently-derived percentage math.",
+             "source": "Daily Macro Risk Report - 2026-08-17.md"},
+            {"date": "2026-08-18", "text": "User-supplied exact restated May base: $1.143T -> June "
+             "$1.116T = -$27B (-2.3% MoM, matching Bloomberg's stated percentage almost exactly). "
+             "Feb $1.2393T -> June $1.116T = -$123.3B cumulative, matching report framing. "
+             "Arithmetically consistent with everything else confirmed, but the $1.143T figure itself "
+             "is not yet independently sourced by name -- logged as high-confidence-by-convergence, "
+             "not primary-sourced.", "source": "user, 2026-08-18 conversation"},
+            {"date": "2026-08-18", "text": "30Y Treasury yield confirmed at 5.310-5.311%, highest "
+             "since 2007 (CNBC, Fed H.15) -- consistent with this claim's expected_market_transmission "
+             "(weaker marginal UST demand contributing to long-end term-premium pressure), though not "
+             "proof of causation on its own.", "source": "Daily Macro Risk Report - 2026-08-17.md"},
+        ],
+        contradictory_evidence_log=[
+            {"date": "2026-07-22", "text": "May's aggregate official sector was actually a net "
+             "BUYER of Treasury bonds/notes specifically (+$3.0B) — the '-$39.9B official outflow' "
+             "headline was driven almost entirely by T-bill selling, not long-term distribution.",
+             "source": "TIC Analysis - April-May 2026.md"},
+        ],
+    ),
+    Claim(
+        claim_id="C3_refined_product_scarcity_not_crude",
+        claim_text="Diesel/refined-product scarcity is a refining-and-logistics constraint, not "
+                    "primarily a crude-availability constraint.",
+        mechanism="Refinery throughput, distillate inventories, and product transport/export "
+                   "logistics can bind even when crude supply itself is adequate — visible as a "
+                   "wide crack spread rather than a crude-price spike alone.",
+        required_evidence="Elevated, verified ULSD-WTI crack spread on matched-unit/matched-date "
+                           "quotes, alongside distillate inventory and refinery utilization data.",
+        observable_indicators=["ulsd_wti_crack_usd_bbl", "distillate_inventory_pct_vs_5yr",
+                                "refinery_utilization_pct"],
+        source_hierarchy=["EIA (primary)", "FRED (primary)", "Forbes/OPIS/Argus (secondary, "
+                           "independently convergent as of 2026-08-17)"],
+        threshold="Crack spread >= $60/bbl on a data-quality-gated (matched unit/date) calculation",
+        time_window="ongoing, re-evaluated daily via module4_refined_products.py",
+        expected_market_transmission="Diesel/heating-oil futures and physical premiums stay "
+                                      "elevated even if WTI/Brent retreat",
+        expected_physical_transmission="Freight, agriculture, construction, mining, and backup-"
+                                        "power costs rise disproportionately to crude price moves",
+        falsifier="If diesel cracks normalize while inventories stabilize and refinery utilization "
+                   "recovers, downgrade the product-scarcity thesis even if crude remains elevated.",
+        confidence_tier=ConfidenceTier.CONFIRMED.value,
+        evidence_log=[
+            {"date": "2026-08-18", "text": "Live matched-contract crack spread (EIA NY Harbor ULSD "
+             "spot vs. FRED WTI spot, same-week prints): $96.88/bbl, gate=OK.",
+             "source": "module4_refined_products.py"},
+            {"date": "2026-08-17", "text": "~$102/bbl crack independently confirmed by Forbes, OPIS, "
+             "Argus Media — not a units artifact; 2022 precedent shows the crack briefly exceeded "
+             "$100 too, so this is a return to crisis-level dislocation, not unprecedented.",
+             "source": "Daily Macro Risk Report - 2026-08-17.md"},
+        ],
+    ),
+    Claim(
+        claim_id="C4_irgc_offensive_posture_shift",
+        claim_text="IRGC has shifted from a defensive/retaliatory posture to an explicitly "
+                    "reserved-offensive posture, raising Leg 1 (War/Energy) and Leg 8 (Maritime) risk.",
+        mechanism="A leadership reshuffle installing officers with an explicit offensive mandate, "
+                   "combined with public statements reserving 'strategic surprises' and a lapsed "
+                   "US-Iran MoU, materially changes the escalation ladder versus a pure tit-for-tat "
+                   "tanker-attack pattern.",
+        required_evidence="Multi-source-confirmed leadership statements reserving offensive action; "
+                           "an actual leadership/command reshuffle with an offensive mandate; "
+                           "continuation or acceleration of the tanker-attack campaign.",
+        observable_indicators=["tanker_attack_frequency", "irgc_leadership_statements",
+                                "bab_al_mandab_status", "ceasefire_escalation_status"],
+        source_hierarchy=["Al Jazeera (direct IRGC quotes, primary reporting)",
+                           "GlobalSecurity.org Iran War daily operational update (aggregated primary)"],
+        threshold="Any confirmed IRGC-attributed action against non-shipping targets (energy "
+                   "networks, power plants, infrastructure) named in Mohebbi's stated target list",
+        time_window="from 2026-08-17 (MoU expiry) forward",
+        expected_market_transmission="Brent/WTI risk premium re-rates higher; war-risk insurance "
+                                      "premiums widen further",
+        expected_physical_transmission="Escalation beyond tanker attacks toward the "
+                                        "infrastructure targets IRGC spokesman Mohebbi named",
+        falsifier="If the IRGC posture-shift rhetoric is not followed by any action beyond the "
+                   "existing tanker-attack pattern within a defined window (e.g. 30 days), downgrade "
+                   "this from ACTIVE toward WEAKENING — consistent with this framework's general "
+                   "finding that jawboning has repeatedly outpaced kinetic escalation in this war.",
+        confidence_tier=ConfidenceTier.CONFIRMED.value,
+        evidence_log=[
+            {"date": "2026-08-17", "text": "IRGC Brig. Gen. Javani (state TV): efforts 'might take "
+             "on an offensive aspect'; opponents should expect 'strategic surprises'. Confirmed via "
+             "direct quote, Al Jazeera (Maziar Motamedi, Tehran dateline).",
+             "source": "Kinetic & Financial Update - 2026-08-18.md"},
+            {"date": "2026-08-09", "text": "Supreme Leader Mojtaba Khamenei installed Ahmad Vahidi "
+             "as IRGC commander-in-chief with an explicit 'powerful offensive operations' mandate.",
+             "source": "Kinetic & Financial Update - 2026-08-18.md"},
+            {"date": "2026-08-18", "text": "Tanker campaign detail (GlobalSecurity.org Day 170, "
+             "cutoff 16 Aug): 3 ADNOC-affiliated vessels attacked in 48 hours through evening of "
+             "Aug 14; 15 ADNOC vessels struck total since war began (1 death, 20 injured); two LNG "
+             "carriers (Energos Winter, GasLog Salem) struck Jul 29, no attribution; ~400 sq km oil "
+             "slick near Hallaniyat Islands (~800,000 bbl Russian crude); hijacked tanker Asana's "
+             "crew still held.", "source": "Kinetic & Financial Update - 2026-08-18.md"},
+            {"date": "2026-08-18", "text": "US-Iran MoU formally expired Aug 17. 17 consecutive "
+             "nights without any US/Israeli strike inside Iran through the Aug 16 cutoff -- kinetic "
+             "escalation is currently one-sided (Iran-on-shipping), not reciprocal strikes on Iranian "
+             "territory, which is the asymmetry the offensive-posture claim is about.",
+             "source": "Kinetic & Financial Update - 2026-08-18.md"},
+        ],
+    ),
+    Claim(
+        claim_id="C5_pickaxe_mountain_strike_scenario",
+        claim_text="A US strike on Pickaxe Mountain (Kuh-e Kolang Gaz La) is a live but "
+                    "unexecuted escalation branch, structurally distinct from Scenario A. "
+                    "F1 (conventional/tunnel-denial) is far more probable than F2 (nuclear "
+                    "earth-penetrator) given 6+ months of non-execution despite standing threats.",
+        mechanism="The facility is reported >100m under granite -- deeper than Fordow, likely "
+                   "beyond conventional GBU-57 MOP penetration (reported ~60-75m into rock). "
+                   "The administration's own public sequencing is split (Rubio: denuclearization "
+                   "as long-term objective vs. Trump: strike 'pretty soon, and very heavily'), and "
+                   "jawboning has repeatedly outpaced kinetic escalation throughout this war.",
+        required_evidence="A reported B-2 deployment/tanker-surge posture matching the Jun 2025 "
+                           "'Midnight Hammer' signature; any DoD/NRC movement of nuclear-capable "
+                           "delivery systems reported by credible defense press; a shift in the "
+                           "administration's public sequencing toward immediate-target framing.",
+        observable_indicators=["b2_deployment_posture", "administration_sequencing_statements",
+                                "iaea_access_status", "centcom_strike_reports"],
+        source_hierarchy=["GlobalSecurity.org Iran War daily operational update (aggregated primary)",
+                           "TWZ, FDD, Ynet, OSINT613 (defense-analysis secondary, independently convergent)"],
+        threshold="Any confirmed CENTCOM strike report against Pickaxe Mountain, OR a reported "
+                   "B-2/MOP sortie profile matching the Jun 2025 strike signature",
+        time_window="standing, open-ended -- monitored via GlobalSecurity.org's daily 'Nuclear Status' section",
+        expected_market_transmission="F1: Brent toward $120-150+, VIX spike, gold/UST safe-haven "
+                                      "bid competing with UST term-premium blowout. F2: beyond any "
+                                      "existing scenario's price table -- Scenario E's $200+ Brent "
+                                      "ceiling should be treated as a floor, not a ceiling.",
+        expected_physical_transmission="F1 extends the Jun 2025 Fordow-strike playbook "
+                                        "(incremental). F2 would be the first combat use of a "
+                                        "nuclear weapon since 1945 -- no market/political precedent "
+                                        "exists in this framework's scenario tree.",
+        falsifier="If Pickaxe Mountain remains unstruck and the IAEA continues to report no "
+                   "renewed enrichment or facility movement, downgrade toward WEAKENING -- "
+                   "consistent with this framework's general finding that rhetoric has "
+                   "outpaced execution throughout this war. Six-plus months of non-execution "
+                   "despite 'pretty soon' rhetoric (standing since at least Feb 2026 reporting) "
+                   "is itself evidence FOR the jawboning-outpaces-kinetics pattern, not evidence "
+                   "the threat is empty -- do not conflate 'not yet executed' with 'will not happen.'",
+        confidence_tier=ConfidenceTier.INFERRED.value,
+        evidence_log=[
+            {"date": "2026-08-16", "text": "Standing threat against Pickaxe Mountain remains on "
+             "the record and unexecuted. Facility: deep underground complex ~2km from Natanz, "
+             "never inspected; WSJ reported (per Israeli/US officials) thousands of centrifuges "
+             "moved in during autumn; carved >100m below bedrock, deeper than Fordow; no strike "
+             "executed as of the 16 Aug cutoff; President's threat to strike 'pretty soon, and "
+             "very heavily' remains on the record; IAEA access denied.",
+             "source": "GlobalSecurity.org Iran War Day 170 Update, via Scenarios - Five Primary Branch Tree.md Scenario F"},
+            {"date": "2026-02-07", "text": "Pickaxe Mountain first widely reported: 'Iran "
+             "accelerates work at secret underground nuclear site' after the Jun 2025 US strikes "
+             "on Fordow/Natanz/Isfahan did not target it.",
+             "source": "ABC News, cited in Scenarios - Five Primary Branch Tree.md Scenario F"},
+            {"date": "2026-08-17", "text": "IAEA assesses Iran's enriched-uranium stockpile "
+             "remains in-country (184.1kg up to 20%, 440.9kg up to 60% -- the latter sufficient "
+             "for ~10 weapons if further enriched); no satellite evidence of renewed enrichment; "
+             "no verification activity in Iran since Feb 28. Context for how much is plausibly "
+             "inside Pickaxe Mountain specifically vs. other sites.",
+             "source": "GlobalSecurity.org Iran War Day 170 Update"},
+        ],
+    ),
+]
+
+
+def _load() -> list:
+    if CLAIMS_PATH.exists():
+        try:
+            data = json.loads(CLAIMS_PATH.read_text())
+            return [Claim(**c) for c in data]
+        except Exception:
+            pass
+    CLAIMS_PATH.parent.mkdir(exist_ok=True)
+    _save(SEED_CLAIMS)
+    return SEED_CLAIMS
+
+
+def _save(claims: list) -> None:
+    CLAIMS_PATH.parent.mkdir(exist_ok=True)
+    CLAIMS_PATH.write_text(json.dumps([asdict(c) for c in claims], indent=2))
+
+
+def add_evidence(claim_id: str, text: str, source: str, contradicts: bool = False) -> Optional[Claim]:
+    claims = _load()
+    for c in claims:
+        if c.claim_id == claim_id:
+            entry = {"date": date.today().isoformat(), "text": text, "source": source}
+            if contradicts:
+                c.contradictory_evidence_log.append(entry)
+            else:
+                c.evidence_log.append(entry)
+            c.last_reviewed = now_iso()
+            _save(claims)
+            return c
+    return None
+
+
+def compute() -> ModuleResult:
+    claims = _load()
+    obs = []
+    counts = {"ACTIVE": 0, "WEAKENING": 0, "FALSIFIED": 0, "RESOLVED": 0, "DATA_INSUFFICIENT": 0}
+    for c in claims:
+        counts[c.status] = counts.get(c.status, 0) + 1
+        obs.append(Observable(
+            c.claim_id, None, None, "claims_engine", c.last_reviewed or None,
+            ConfidenceTier(c.confidence_tier), note=c.claim_text,
+        ))
+
+    # A claim with contradictory evidence outweighing supporting evidence and
+    # no recent supporting update is flagged WEAKENING here (mechanical rule,
+    # not an automatic status write — a human reviews before flipping status
+    # in the stored record, same discipline as the vault's TIC retraction).
+    weakening_candidates = [
+        c.claim_id for c in claims
+        if len(c.contradictory_evidence_log) > len(c.evidence_log) and c.status == ClaimStatus.ACTIVE.value
+    ]
+
+    return ModuleResult(
+        module_id="M8_claims_engine",
+        purpose="Structured claim/mechanism/falsifier records for every framework thesis, "
+                "so falsification is a query, not a re-read of prose.",
+        computed_at=now_iso(),
+        signal_state=SignalState.NORMAL if not weakening_candidates else SignalState.WATCH,
+        confidence=ConfidenceTier.CONFIRMED,
+        metrics={
+            "claim_count": len(claims),
+            "status_counts": counts,
+            "weakening_candidates": weakening_candidates,
+            "claims": [asdict(c) for c in claims],
+        },
+        observables=obs,
+        falsifiers=["Each claim carries its own falsifier — see metrics.claims[*].falsifier. "
+                    "This module-level result has no falsifier of its own; it is an aggregator."],
+        data_quality_notes=[
+            "weakening_candidates is a MECHANICAL suggestion (contradictory evidence outnumbers "
+            "supporting evidence), not an automatic status change — a maintainer should review "
+            "before flipping a claim's status to WEAKENING/FALSIFIED, consistent with how the "
+            "vault's own TIC Analysis note retracted a claim only after direct verification, not "
+            "on suspicion alone."
+        ],
+        missing_data=[],
+        source_freshness={},
+    )
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--list", action="store_true")
+    ap.add_argument("--evidence", type=str, help="claim_id to attach evidence to")
+    ap.add_argument("--text", type=str)
+    ap.add_argument("--source", type=str, default="manual")
+    ap.add_argument("--contradicts", action="store_true")
+    ap.add_argument("--write-supabase", action="store_true")
+    args = ap.parse_args()
+
+    if args.evidence:
+        c = add_evidence(args.evidence, args.text or "", args.source, args.contradicts)
+        print(f"{'Contradictory' if args.contradicts else 'Supporting'} evidence added to "
+              f"{args.evidence}." if c else f"Claim {args.evidence} not found.", file=sys.stderr)
+        return
+
+    if args.list:
+        for c in _load():
+            print(f"{c.claim_id:35} [{c.status:18}] {c.confidence_tier:12} {c.claim_text[:70]}")
+        return
+
+    result = compute()
+    if args.json:
+        print(result.to_json())
+    else:
+        print(f"M8 Claims Engine — {result.metrics['claim_count']} claims, "
+              f"{result.metrics['status_counts']}", file=sys.stderr)
+        if result.metrics["weakening_candidates"]:
+            print(f"  WEAKENING candidates: {result.metrics['weakening_candidates']}", file=sys.stderr)
+
+    if args.write_supabase:
+        supabase_upsert("module_results", [{
+            "module_id": result.module_id,
+            "obs_date": date.today().isoformat(),
+            "signal_state": result.signal_state.value,
+            "confidence": result.confidence.value,
+            "payload": result.to_dict(),
+        }], on_conflict="module_id,obs_date")
+
+
+if __name__ == "__main__":
+    main()

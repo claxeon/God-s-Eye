@@ -1,0 +1,18 @@
+{
+  "_comment": "Thresholds for module4_refined_products.py. See Intelligence Briefs/Daily Macro Risk Report - 2026-08-17.md for the real-world matched-contract check this module formalizes (the ~$102/bbl ULSD-WTI crack).",
+  "version": "1.0.0",
+  "updated": "2026-08-18",
+  "ulsd_wti_crack_watch_usd_bbl": 40.0,
+  "ulsd_wti_crack_elevated_usd_bbl": 60.0,
+  "ulsd_wti_crack_critical_usd_bbl": 90.0,
+  "distillate_inventory_watch_pct_below_5yr": -10.0,
+  "distillate_inventory_critical_pct_below_5yr": -25.0,
+  "refinery_utilization_watch_pct": 88.0,
+  "refinery_utilization_critical_pct": 80.0,
+  "gal_per_bbl": 42,
+  "stale_after_days": {
+    "futures": 2,
+    "eia_weekly": 10,
+    "refinery_utilization": 10
+  }
+}

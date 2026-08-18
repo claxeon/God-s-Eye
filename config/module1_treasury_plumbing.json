@@ -1,0 +1,22 @@
+{
+  "_comment": "Thresholds for module1_treasury_plumbing.py. Versioned override, does not touch state_vector_compute.py's existing L2 weights.",
+  "version": "1.0.0",
+  "updated": "2026-08-18",
+  "auction_tail_watch_sigma": 1.0,
+  "sofr_iorb_watch_bps": 5,
+  "bid_to_cover_watch_sigma": -1.0,
+  "auction_weakness_consecutive_for_elevated": 2,
+  "primary_dealer_allocation_shift_pp_elevated": 5.0,
+  "critical_requires_all_of": ["auction_weakness", "repo_stress", "elevated_fails", "rising_long_yields"],
+  "stale_after_days": {
+    "yields": 3,
+    "auction_data": 45,
+    "repo_rates": 3,
+    "swap_spreads": 5,
+    "tga_reserves_rrp": 10
+  },
+  "swap_spread_stress_bps": {
+    "10y": -40,
+    "30y": -70
+  }
+}

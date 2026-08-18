@@ -96,5 +96,21 @@ python3 rct_trigger_monitor.py 1>&2 || true
 # today is based on history through yesterday plus predict step — documented lag.
 python3 kalman_lt.py 1>&2 || true
 
+# Step 2.51: Modules 1-9 (Treasury plumbing / Japan channels / dollar funding
+# / refined products / fertilizer clock / country vulnerability / policy
+# response / claims engine / dashboard aggregator) — added 2026-08-18 at user
+# request, additive extension only, does NOT feed state_vector_compute.py or
+# change any leg weight. See Scripts/MODULES_README.md.
+#
+# KNOWN COST: module9 internally calls module2, which re-invokes
+# yen_mechanics.run_yen_mechanics() and carry_mechanics' fetchers — the SAME
+# calls Steps 1.6 and 2.48 above already made this run. That means USD/JPY,
+# CFTC, and BIS data get fetched twice per daily run. This is a real,
+# documented inefficiency, not a hidden one: fixing it means threading
+# already-computed results into module2 instead of letting it recompute, and
+# was left for a follow-up rather than risking a rushed change to
+# yen_mechanics.py/carry_mechanics.py's calling contract during this pass.
+python3 module9_dashboard_outputs.py --write-file --write-supabase 1>&2 || true
+
 # Step 3: State vector — JSON to stdout for trigger to parse
 exec python3 state_vector_compute.py --date "$(date +%Y-%m-%d)" --json

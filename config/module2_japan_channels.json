@@ -1,0 +1,18 @@
+{
+  "_comment": "Thresholds for module2_japan_channels.py. Wraps existing yen_mechanics.py (Channels A/C) and carry_mechanics.py (Channel B) rather than recomputing their series.",
+  "version": "1.0.0",
+  "updated": "2026-08-18",
+  "channel_a_intervention_single_day_move_pct": -1.5,
+  "channel_b_hedged_spread_watch_pp": 0.5,
+  "channel_b_repatriation_incentive_elevated_pp": 1.0,
+  "channel_c_yen_appreciation_watch_pct_1d": 2.0,
+  "channel_c_yen_appreciation_critical_pct_1d": 3.5,
+  "channel_c_requires_risk_asset_confirmation": true,
+  "stale_after_days": {
+    "usdjpy": 2,
+    "jgb_yields": 35,
+    "tic_holdings": 60,
+    "cftc_imm": 10,
+    "bis_lbs": 100
+  }
+}

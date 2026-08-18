@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "updated": "2026-08-18",
+  "policy_buffer_score_bands": { "watch": 0.40, "elevated": 0.60, "critical": 0.80 },
+  "response_speed_days_fast": 14,
+  "response_speed_days_slow": 60,
+  "note": "Positive framing: HIGH policy_buffer_score = stress being absorbed. This module's signal_state reflects the INVERSE of typical modules -- CRITICAL here means policy response is failing to keep pace, not that policy itself is extreme.",
+  "stale_after_days": {
+    "spr_releases": 10,
+    "subsidy_announcements": 30,
+    "fed_facility_usage": 8
+  }
+}

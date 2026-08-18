@@ -1,0 +1,487 @@
+{
+  "generated_at": "2026-08-18T06:08:37Z",
+  "note": "Additive extension per user request (2026-08-18) \u2014 does NOT replace or reweight state_vector_history / leg_components. Cross-reference, don't merge, until a maintainer deliberately decides to fold a specific module observable into an existing leg (see MODULES_README.md).",
+  "panels": [
+    {
+      "panel_id": "1_treasury_market_function",
+      "title": "Treasury Market Function",
+      "current_state": "NORMAL",
+      "confidence": "INFERRED",
+      "computed_at": "2026-08-18T06:08:26Z",
+      "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
+      "trend_1m": "insufficient history",
+      "trend_3m": "insufficient history",
+      "data_freshness": {
+        "DGS2": "2026-08-14",
+        "DGS5": "2026-08-14",
+        "DGS10": "2026-08-14",
+        "DGS20": "2026-08-14",
+        "DGS30": "2026-08-14",
+        "SOFR": "2026-08-14",
+        "IORB": "2026-08-18",
+        "WTREGEN": "2026-08-12",
+        "WRESBAL": "2026-08-12",
+        "RRPONTSYD": "2026-08-17"
+      },
+      "top_drivers": {
+        "curve_2s10s_bps": 51.0,
+        "curve_5s30s_bps": 89.0,
+        "curve_10s30s_bps": 57.0,
+        "curve_2s30s_bps": 108.0,
+        "sofr": 3.62,
+        "iorb": 3.65,
+        "tga_balance": 963950.0,
+        "reserve_balances": 2944059.0,
+        "on_rrp_balance": 0.255,
+        "sofr_minus_iorb_bps": -3.0,
+        "bid_to_cover_30_year": 2.39,
+        "bid_to_cover_10_year": 2.53
+      },
+      "countervailing_evidence": [
+        "move_index: UNKNOWN \u2014 no free MOVE feed; ICE BofA proprietary index (requires: paid (ICE/Bloomberg terminal))",
+        "repo_fails: UNKNOWN \u2014 no free repo-fails series; DTCC/NY Fed GCF data not publicly scraped here (requires: paid/institutional feed)",
+        "swap_spread_10y: UNKNOWN \u2014 no free swaps data source wired (requires: paid (swaps data vendor))",
+        "swap_spread_30y: UNKNOWN \u2014 no free swaps data source wired (requires: paid (swaps data vendor))",
+        "auction_tail_30y_bps: UNKNOWN \u2014 fiscaldata API has no when-issued yield to diff against (requires: needs WI-yield source)",
+        "indirect_bidder_pct: UNKNOWN \u2014 fiscaldata auctions_query does not expose bidder-class breakdown in this deployment's query (requires: needs TreasuryDirect auction detail parser)",
+        "primary_dealer_pct: UNKNOWN \u2014 same as indirect_bidder_pct (requires: needs TreasuryDirect auction detail parser)",
+        "bid_to_cover_30_year rolling-average z-score not computed: no free source for auction-level BTC history wired yet; only latest point available.",
+        "7 of 19 tracked observables are unknown in this deployment \u2014 treat any NORMAL/WATCH read as low-confidence, not a clean bill of health."
+      ],
+      "falsification_conditions": [
+        "If long yields rise while auction demand remains strong, dealer absorption is normal, repo is orderly, and swap spreads do not indicate stress, this is NORMAL repricing, not impaired function.",
+        "Swap-spread and dealer-allocation inputs are structurally unavailable in this deployment (see data_quality_notes) \u2014 a CRITICAL read can never be triggered by this module alone until those providers are wired; treat any escalation above WATCH as provisional."
+      ],
+      "missing_data": [
+        "move_index",
+        "repo_fails",
+        "swap_spread_10y",
+        "swap_spread_30y",
+        "auction_tail_30y_bps",
+        "indirect_bidder_pct",
+        "primary_dealer_pct"
+      ],
+      "linked_source_records": [
+        "ust_2y",
+        "ust_5y",
+        "ust_10y",
+        "ust_20y",
+        "ust_30y",
+        "sofr",
+        "iorb",
+        "tga_balance",
+        "reserve_balances",
+        "on_rrp_balance",
+        "bid_to_cover_30_year",
+        "bid_to_cover_10_year",
+        "move_index",
+        "repo_fails",
+        "swap_spread_10y",
+        "swap_spread_30y",
+        "auction_tail_30y_bps",
+        "indirect_bidder_pct",
+        "primary_dealer_pct"
+      ]
+    },
+    {
+      "panel_id": "2_japan_channels",
+      "title": "Japan Channels (FX intervention / reallocation / carry unwind)",
+      "current_state": "WATCH",
+      "confidence": "INFERRED",
+      "computed_at": "2026-08-18T06:08:36Z",
+      "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
+      "trend_1m": "insufficient history",
+      "trend_3m": "insufficient history",
+      "data_freshness": {},
+      "top_drivers": {
+        "channel_a_intervention_flag": false,
+        "channel_a_daily_move_pct": -0.088,
+        "channel_c_yen_strength_pct_1d": 0.088,
+        "channel_b_hedged_spread_pp": 0.536,
+        "channel_b_repatriation_favoured": true
+      },
+      "countervailing_evidence": [
+        "Channel C falsifier check: 'if USD/JPY is stable/weakening while risk assets are orderly, do not label it a leveraged carry unwind' \u2014 this module cannot confirm risk-asset orderliness (no VIX/credit feed wired), so it never escalates Channel C past WATCH on its own.",
+        "fima_repo_usage: UNKNOWN \u2014 Fed does not publish counterparty-level FIMA repo usage; only aggregate facility totals, and not on a Japan-attributable basis (requires: paid/authenticated feed)",
+        "tic_holdings_by_maturity_japan: UNKNOWN \u2014 TIC country tables do not break down by maturity bucket; see Intelligence Briefs/TIC Analysis - April-May 2026.md for the closest available proxy (bills vs. long-term composition, reported after the fact) (requires: paid/authenticated feed)"
+      ],
+      "falsification_conditions": [
+        "Channel B: if JGB yields rise but hedged Treasury pickup remains strongly positive and Japanese flows remain outward, downgrade the reallocation thesis.",
+        "Channel A: if yen intervention occurs without a reduction in Treasury holdings, or with heavy FIMA use, do not claim direct Treasury selling. (FIMA usage is structurally unavailable here \u2014 see data_quality_notes; this falsifier can only be checked qualitatively via dated Intelligence Briefs, not this module's live feed.)",
+        "Channel C: if USD/JPY is stable or weakening while risk assets are orderly, do not label it a leveraged carry unwind. (Risk-asset orderliness is not wired into this module \u2014 Channel C is capped at WATCH here for that reason.)"
+      ],
+      "missing_data": [
+        "channel_c_risk_asset_confirmation (VIX/credit-spread corroboration not wired into this module)",
+        "fima_repo_usage",
+        "tic_holdings_by_maturity_japan"
+      ],
+      "linked_source_records": [
+        "usdjpy_spot",
+        "usdjpy_daily_change_pct",
+        "cftc_jpy_nc_pct_oi",
+        "hedged_ust_vs_jgb_spread_pp",
+        "fima_repo_usage",
+        "tic_holdings_by_maturity_japan"
+      ]
+    },
+    {
+      "panel_id": "3_dollar_funding",
+      "title": "Dollar Funding and Collateral Stress",
+      "current_state": "NORMAL",
+      "confidence": "SPECULATIVE",
+      "computed_at": "2026-08-18T06:08:36Z",
+      "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
+      "trend_1m": "insufficient history",
+      "trend_3m": "insufficient history",
+      "data_freshness": {
+        "SOFR": "2026-08-14",
+        "IORB": "2026-08-18",
+        "DTWEXBGS": "2026-08-14"
+      },
+      "top_drivers": {
+        "sofr": 3.62,
+        "iorb": 3.65,
+        "dollar_index_broad": 118.9028,
+        "sofr_minus_iorb_bps": -3.0,
+        "stress_classification": "UNKNOWN \u2014 requires FIMA/swap-line/cross-currency-basis feeds not wired in this deployment"
+      },
+      "countervailing_evidence": [
+        "usdjpy_cross_currency_basis: UNKNOWN \u2014 no free cross-currency basis swap feed (requires: paid/authenticated feed)",
+        "eurusd_cross_currency_basis: UNKNOWN \u2014 no free cross-currency basis swap feed (requires: paid/authenticated feed)",
+        "krwusd_cross_currency_basis: UNKNOWN \u2014 no free cross-currency basis swap feed (requires: paid/authenticated feed)",
+        "fra_ois_spread: UNKNOWN \u2014 no free FRA-OIS or modern-equivalent feed (requires: paid/authenticated feed)",
+        "fima_repo_facility_usage: UNKNOWN \u2014 Fed publishes aggregate only, not attributable/live (requires: paid/authenticated feed)",
+        "fed_swap_line_usage: UNKNOWN \u2014 not broken out in a free, timely series (requires: paid/authenticated feed)",
+        "foreign_cb_swap_line_usage: UNKNOWN \u2014 same as fed_swap_line_usage (requires: paid/authenticated feed)",
+        "repo_specialness: UNKNOWN \u2014 needs GCF/tri-party repo data, not freely scraped (requires: paid/authenticated feed)",
+        "repo_fails: UNKNOWN \u2014 same limitation as module1's repo_fails (requires: paid/authenticated feed)",
+        "fx_implied_vol: UNKNOWN \u2014 needs an options-data vendor (requires: paid/authenticated feed)",
+        "fx_risk_reversals: UNKNOWN \u2014 needs an options-data vendor (requires: paid/authenticated feed)",
+        "offshore_funding_spread_proxy: UNKNOWN \u2014 needs a dedicated offshore-dollar funding series (e.g. CIP deviations), not freely available at daily frequency (requires: paid/authenticated feed)",
+        "12 of 15 tracked observables are unknown. SOFR-IORB alone is a weak proxy for funding stress; do not treat a NORMAL read here as confirmation of orderly funding markets broadly."
+      ],
+      "falsification_conditions": [
+        "If FIMA, swap lines, repo facilities, and reserve liquidity expand while basis and repo stress normalize, do not infer a forced Treasury-selling cascade. (This module cannot currently observe FIMA/swap-line usage to check this \u2014 treat any escalation above WATCH as provisional pending those feeds.)"
+      ],
+      "missing_data": [
+        "usdjpy_cross_currency_basis",
+        "eurusd_cross_currency_basis",
+        "krwusd_cross_currency_basis",
+        "fra_ois_spread",
+        "fima_repo_facility_usage",
+        "fed_swap_line_usage",
+        "foreign_cb_swap_line_usage",
+        "repo_specialness",
+        "repo_fails",
+        "fx_implied_vol",
+        "fx_risk_reversals",
+        "offshore_funding_spread_proxy"
+      ],
+      "linked_source_records": [
+        "sofr",
+        "iorb",
+        "dollar_index_broad",
+        "usdjpy_cross_currency_basis",
+        "eurusd_cross_currency_basis",
+        "krwusd_cross_currency_basis",
+        "fra_ois_spread",
+        "fima_repo_facility_usage",
+        "fed_swap_line_usage",
+        "foreign_cb_swap_line_usage",
+        "repo_specialness",
+        "repo_fails",
+        "fx_implied_vol",
+        "fx_risk_reversals",
+        "offshore_funding_spread_proxy"
+      ]
+    },
+    {
+      "panel_id": "4_refined_products",
+      "title": "Energy: Crude vs. Refined Products",
+      "current_state": "CRITICAL",
+      "confidence": "CONFIRMED",
+      "computed_at": "2026-08-18T06:08:37Z",
+      "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
+      "trend_1m": "insufficient history",
+      "trend_3m": "insufficient history",
+      "data_freshness": {
+        "DCOILWTICO": "2026-08-11",
+        "EIA_ULSD": "2026-08-11"
+      },
+      "top_drivers": {
+        "wti_spot_usd_bbl": 84.77,
+        "ulsd_ny_harbor_usd_bbl": 181.65,
+        "crack_spread_gate": "OK",
+        "ulsd_wti_crack_usd_bbl": 96.88000000000001
+      },
+      "countervailing_evidence": [
+        "Crack spread dates: WTI 2026-08-11, ULSD 2026-08-11 \u2014 SAME DATE, cleanly matched.",
+        "distillate_inventory_pct_vs_5yr: UNKNOWN \u2014 use market_mechanics.py's existing EIA weekly flow tracker (WPULEUS3 baseline already validated there) rather than a second unverified series ID here (requires: paid/authenticated feed)",
+        "refinery_utilization_pct: UNKNOWN \u2014 same \u2014 see market_mechanics.py EIA_FLOW_BASELINES['WPULEUS3'] (requires: paid/authenticated feed)",
+        "gasoil_brent_crack: UNKNOWN \u2014 needs matched-month ICE gasoil + Brent futures, no free feed wired (requires: paid/authenticated feed)",
+        "gasoline_crack: UNKNOWN \u2014 needs matched-month RBOB futures, no free feed wired (requires: paid/authenticated feed)",
+        "tanker_rates_war_risk: UNKNOWN \u2014 needs a shipping-data vendor (Baltic Exchange, Windward, etc.) (requires: paid/authenticated feed)",
+        "diesel_price_east_africa_south_asia: UNKNOWN \u2014 needs a dedicated regional retail-price panel (requires: paid/authenticated feed)",
+        "This module can price the crude-vs-refined-product DIVERGENCE (the crack) but cannot currently confirm the falsifier condition (inventories stabilizing, refinery utilization recovering) with a live feed \u2014 see missing_data. A CRITICAL crack reading here should be read as 'refined-product price stress confirmed', not 'refinery/logistics root cause confirmed' \u2014 that requires the inventory/utilization series this deployment doesn't yet pull independently of market_mechanics.py."
+      ],
+      "falsification_conditions": [
+        "If diesel cracks normalize while inventories stabilize and refinery utilization recover, downgrade the product-scarcity thesis even if crude remains elevated. (Inventory/utilization confirmation is not wired into this module \u2014 see data_quality_notes.)",
+        "A crack spread computed from mismatched units, mismatched delivery months/dates, or a futures-vs-physical mismatch is a DATA_QUALITY_FAILURE, not a signal, by construction of matched_crack_spread() in godseye_modules_common.py."
+      ],
+      "missing_data": [
+        "distillate_inventory_pct_vs_5yr",
+        "refinery_utilization_pct",
+        "gasoil_brent_crack",
+        "gasoline_crack",
+        "tanker_rates_war_risk",
+        "diesel_price_east_africa_south_asia"
+      ],
+      "linked_source_records": [
+        "wti_spot_usd_bbl",
+        "ulsd_ny_harbor_usd_bbl",
+        "distillate_inventory_pct_vs_5yr",
+        "refinery_utilization_pct",
+        "gasoil_brent_crack",
+        "gasoline_crack",
+        "tanker_rates_war_risk",
+        "diesel_price_east_africa_south_asia"
+      ]
+    },
+    {
+      "panel_id": "5_fertilizer_clock",
+      "title": "Fertilizer Procurement Clock",
+      "current_state": "NORMAL",
+      "confidence": "SPECULATIVE",
+      "computed_at": "2026-08-18T06:08:37Z",
+      "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
+      "trend_1m": "insufficient history",
+      "trend_3m": "insufficient history",
+      "data_freshness": {
+        "NG.RNGWHHD.D": "2026-08-11"
+      },
+      "top_drivers": {
+        "henry_hub_usd_mmbtu": 2.79
+      },
+      "countervailing_evidence": [
+        "urea_price: UNKNOWN \u2014 needs Argus/Fertecon/CRU subscription, no free feed (requires: paid/authenticated feed)",
+        "ammonia_price: UNKNOWN \u2014 same (requires: paid/authenticated feed)",
+        "dap_price: UNKNOWN \u2014 same (requires: paid/authenticated feed)",
+        "map_price: UNKNOWN \u2014 same (requires: paid/authenticated feed)",
+        "potash_mop_price: UNKNOWN \u2014 same (requires: paid/authenticated feed)",
+        "sulfur_price: UNKNOWN \u2014 same (requires: paid/authenticated feed)",
+        "gulf_plant_operating_status: UNKNOWN \u2014 needs manual maintenance from primary-source announcements (QAFCO/SABIC/OQ/ADNOC/etc.), not currently ingested as structured data (requires: paid/authenticated feed)",
+        "india_tender_data: UNKNOWN \u2014 needs a dedicated agri-tender data source (e.g. IFFCO/STC/MMTC tender bulletins), not scraped here (requires: paid/authenticated feed)",
+        "brazil_import_data: UNKNOWN \u2014 needs Brazilian customs/ANDA data, not wired (requires: paid/authenticated feed)",
+        "bangladesh_pakistan_procurement: UNKNOWN \u2014 needs national procurement bulletins, not wired (requires: paid/authenticated feed)",
+        "china_russia_export_restrictions: UNKNOWN \u2014 needs customs/MOFCOM bulletin tracking, not wired (requires: paid/authenticated feed)",
+        "farm_credit_conditions: UNKNOWN \u2014 needs a dedicated ag-credit data source (requires: paid/authenticated feed)",
+        "application_rate_surveys: UNKNOWN \u2014 needs USDA/FAO survey data, published with long lags and not API-accessible here (requires: paid/authenticated feed)",
+        "planted_acreage_surveys: UNKNOWN \u2014 same (requires: paid/authenticated feed)",
+        "fertilizer_to_crop_price_ratio: UNKNOWN \u2014 requires urea_price (unavailable) and a crop price index \u2014 cannot compute without the former (requires: paid/authenticated feed)",
+        "This module is structurally capped at WATCH: ELEVATED/CRITICAL require at least one non-price observable (tender failure, plant outage, application-rate drop) per the spec's own falsifier design, and none of those are wired to a live source in this deployment \u2014 see missing_data. Do NOT read a WATCH/NORMAL state here as 'fertilizer risk is low'; it means 'this module cannot currently see the procurement-failure evidence that would justify escalating past WATCH', which is a data-quality statement, not a risk statement. Cross-reference Intelligence Briefs/Kinetic & Financial Update - 2026-08-18.md (JPMorgan fertilizer report) for the qualitative picture this module cannot yet quantify."
+      ],
+      "falsification_conditions": [
+        "If major tenders clear near normal volumes and delivery schedules, plants restart, export restrictions ease, and application surveys are stable, classify fertilizer stress as a price shock, not an agricultural-production risk.",
+        "This module never infers a crop-yield outcome from price/gas data alone \u2014 that requires procurement/application evidence none of which is currently wired."
+      ],
+      "missing_data": [
+        "urea_price",
+        "ammonia_price",
+        "dap_price",
+        "map_price",
+        "potash_mop_price",
+        "sulfur_price",
+        "gulf_plant_operating_status",
+        "india_tender_data",
+        "brazil_import_data",
+        "bangladesh_pakistan_procurement",
+        "china_russia_export_restrictions",
+        "farm_credit_conditions",
+        "application_rate_surveys",
+        "planted_acreage_surveys",
+        "fertilizer_to_crop_price_ratio"
+      ],
+      "linked_source_records": [
+        "henry_hub_usd_mmbtu",
+        "urea_price",
+        "ammonia_price",
+        "dap_price",
+        "map_price",
+        "potash_mop_price",
+        "sulfur_price",
+        "gulf_plant_operating_status",
+        "india_tender_data",
+        "brazil_import_data",
+        "bangladesh_pakistan_procurement",
+        "china_russia_export_restrictions",
+        "farm_credit_conditions",
+        "application_rate_surveys",
+        "planted_acreage_surveys",
+        "fertilizer_to_crop_price_ratio"
+      ]
+    },
+    {
+      "panel_id": "6_country_vulnerability",
+      "title": "Country Vulnerability Matrix",
+      "current_state": "DATA_QUALITY_FAILURE",
+      "confidence": "SPECULATIVE",
+      "computed_at": "2026-08-18T06:08:37Z",
+      "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
+      "trend_1m": "insufficient history",
+      "trend_3m": "insufficient history",
+      "data_freshness": {},
+      "top_drivers": {},
+      "countervailing_evidence": [
+        "All 19 country profiles are unpopulated seeds (every field=None). This module's scoring engine is fully functional and tested (see tests/test_godseye_modules.py), but produces DATA_QUALITY_FAILURE for every country until a maintainer loads real values from FAO/USDA FAS/World Bank WDI/WFP/IMF \u2014 see MODULES_README.md. This is intentional: the alternative was hardcoding the vault's own prior qualitative risk list (Bangladesh, Pakistan, Somalia, Sudan, Afghanistan, Yemen, etc.) as if it were sourced numeric data, which the spec explicitly prohibits."
+      ],
+      "falsification_conditions": [
+        "A country's overall_score can only rise if its own sourced fields indicate rising vulnerability \u2014 this module cannot be moved by narrative alone.",
+        "If field_coverage is low for a country, its overall_state should be read as 'insufficient data', not 'low risk' \u2014 see field_coverage in each country's result."
+      ],
+      "missing_data": [
+        "Bangladesh",
+        "Pakistan",
+        "India",
+        "Brazil",
+        "Somalia",
+        "Sudan",
+        "Afghanistan",
+        "Yemen",
+        "Kenya",
+        "Tanzania",
+        "Ethiopia",
+        "Mozambique",
+        "Philippines",
+        "Vietnam",
+        "Indonesia",
+        "Egypt",
+        "Jordan",
+        "Morocco",
+        "South Africa"
+      ],
+      "linked_source_records": [
+        "country_profile_Bangladesh",
+        "country_profile_Pakistan",
+        "country_profile_India",
+        "country_profile_Brazil",
+        "country_profile_Somalia",
+        "country_profile_Sudan",
+        "country_profile_Afghanistan",
+        "country_profile_Yemen",
+        "country_profile_Kenya",
+        "country_profile_Tanzania",
+        "country_profile_Ethiopia",
+        "country_profile_Mozambique",
+        "country_profile_Philippines",
+        "country_profile_Vietnam",
+        "country_profile_Indonesia",
+        "country_profile_Egypt",
+        "country_profile_Jordan",
+        "country_profile_Morocco",
+        "country_profile_South_Africa"
+      ]
+    },
+    {
+      "panel_id": "7_policy_response",
+      "title": "Policy Response",
+      "current_state": "NORMAL",
+      "confidence": "INFERRED",
+      "computed_at": "2026-08-18T06:08:37Z",
+      "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
+      "trend_1m": "insufficient history",
+      "trend_3m": "insufficient history",
+      "data_freshness": {},
+      "top_drivers": {
+        "reserve_balances": 2944059.0,
+        "on_rrp_balance": 0.255,
+        "tga_balance": 963950.0,
+        "logged_policy_events": 0,
+        "policy_buffer_score_liquidity_only": "computed",
+        "policy_buffer_score_full": null
+      },
+      "countervailing_evidence": [
+        "spr_product_stock_releases: UNKNOWN \u2014 series exists (EIA WCSSTUS1) via other scripts (spr_term_structure_model.py) \u2014 not duplicated here; cross-reference that output rather than re-pulling (requires: paid/authenticated feed)",
+        "fuel_export_restrictions: UNKNOWN \u2014 announcement-driven, needs manual event log (log_policy_event()) (requires: paid/authenticated feed)",
+        "refinery_restart_emergency_import_policy: UNKNOWN \u2014 same (requires: paid/authenticated feed)",
+        "fertilizer_subsidies: UNKNOWN \u2014 same (requires: paid/authenticated feed)",
+        "emergency_fertilizer_procurement: UNKNOWN \u2014 same (requires: paid/authenticated feed)",
+        "food_aid_distributions: UNKNOWN \u2014 needs WFP/FAO program data, not wired (requires: paid/authenticated feed)",
+        "china_fertilizer_export_restrictions_releases: UNKNOWN \u2014 needs MOFCOM bulletin tracking, not wired (requires: paid/authenticated feed)",
+        "boj_purchases_intervention_detail: UNKNOWN \u2014 Module 2 covers intervention DETECTION (price-based); BOJ balance-sheet purchase detail itself not wired here (requires: paid/authenticated feed)",
+        "fed_repo_facility_operations_detail: UNKNOWN \u2014 aggregate reserve/RRP levels wired above; operation-level detail (which counterparties, what rate) not wired (requires: paid/authenticated feed)",
+        "gcc_security_shipping_escort_actions: UNKNOWN \u2014 needs a defense-news event log, not wired (requires: paid/authenticated feed)",
+        "imf_worldbank_fao_wfp_programs: UNKNOWN \u2014 needs program-announcement tracking, not wired (requires: paid/authenticated feed)",
+        "policy_buffer_score_full is None by design: the spec's Track list spans monetary liquidity (measurable here) AND physical-flow/subsidy/aid policy (not measurable here without manual event logging). Reporting a single blended score from only the liquidity half would overstate confidence \u2014 use log_policy_event() to build the other half over time."
+      ],
+      "falsification_conditions": [
+        "Do not extrapolate a shortage/market-break scenario if policy measures restore physical flows, stabilize procurement, or normalize funding markets before critical buffers are exhausted. (This module can confirm liquidity-side normalization but not physical-flow restoration without the manual event log being populated.)"
+      ],
+      "missing_data": [
+        "spr_product_stock_releases",
+        "fuel_export_restrictions",
+        "refinery_restart_emergency_import_policy",
+        "fertilizer_subsidies",
+        "emergency_fertilizer_procurement",
+        "food_aid_distributions",
+        "china_fertilizer_export_restrictions_releases",
+        "boj_purchases_intervention_detail",
+        "fed_repo_facility_operations_detail",
+        "gcc_security_shipping_escort_actions",
+        "imf_worldbank_fao_wfp_programs"
+      ],
+      "linked_source_records": [
+        "reserve_balances",
+        "on_rrp_balance",
+        "tga_balance",
+        "spr_product_stock_releases",
+        "fuel_export_restrictions",
+        "refinery_restart_emergency_import_policy",
+        "fertilizer_subsidies",
+        "emergency_fertilizer_procurement",
+        "food_aid_distributions",
+        "china_fertilizer_export_restrictions_releases",
+        "boj_purchases_intervention_detail",
+        "fed_repo_facility_operations_detail",
+        "gcc_security_shipping_escort_actions",
+        "imf_worldbank_fao_wfp_programs"
+      ]
+    },
+    {
+      "panel_id": "8_claims_engine",
+      "title": "Claims, Falsifiers, and Contradictory Evidence",
+      "current_state": "NORMAL",
+      "confidence": "CONFIRMED",
+      "computed_at": "2026-08-18T06:08:37Z",
+      "trend_1w": "insufficient history \u2014 module_results table needs >=2 dated rows; see schema_v3_extension_modules.sql",
+      "trend_1m": "insufficient history",
+      "trend_3m": "insufficient history",
+      "data_freshness": {},
+      "top_drivers": {
+        "claim_count": 4
+      },
+      "countervailing_evidence": [
+        "weakening_candidates is a MECHANICAL suggestion (contradictory evidence outnumbers supporting evidence), not an automatic status change \u2014 a maintainer should review before flipping a claim's status to WEAKENING/FALSIFIED, consistent with how the vault's own TIC Analysis note retracted a claim only after direct verification, not on suspicion alone."
+      ],
+      "falsification_conditions": [
+        "Each claim carries its own falsifier \u2014 see metrics.claims[*].falsifier. This module-level result has no falsifier of its own; it is an aggregator."
+      ],
+      "missing_data": [],
+      "linked_source_records": [
+        "C1_fertilizer_2027_crop_input_risk",
+        "C2_japan_ust_reallocation",
+        "C3_refined_product_scarcity_not_crude",
+        "C4_irgc_offensive_posture_shift"
+      ]
+    },
+    {
+      "panel_id": "10_data_freshness_quality",
+      "title": "Data Freshness and Data Quality",
+      "total_observables_tracked": 101,
+      "total_unknown": 73,
+      "coverage_pct": 27.7,
+      "panels_in_data_quality_failure": [
+        "6_country_vulnerability"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "updated": "2026-08-18",
+  "sofr_iorb_watch_bps": 5,
+  "sofr_iorb_elevated_bps": 10,
+  "cross_currency_basis_watch_bps": -30,
+  "cross_currency_basis_critical_bps": -60,
+  "fx_vol_zscore_watch": 1.5,
+  "facility_expansion_offsets_stress": true,
+  "stale_after_days": {
+    "sofr_iorb": 2,
+    "fx_basis": 2,
+    "fima_swaplines": 8,
+    "dxy": 2
+  }
+}
